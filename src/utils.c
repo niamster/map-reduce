@@ -2,7 +2,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 #include <errno.h>
+#include <sys/mman.h>
+#include <sys/param.h>
 
 #include "utils.h"
 
@@ -34,39 +37,97 @@ bool is_sep(char c) {
     return false;
 }
 
-int fchunk_read(int fd, unsigned max, fchunk_cb_t cb, void *user) {
-    off_t csize;
-    off_t offset;
-    unsigned idx;
+int fchunk_read_fd(int fd, unsigned max, fchunk_cb_t cb, void *user) {
+    off_t fsize;
+    char *mem;
+    int ret;
 
-    if (fd < 0 || !cb || max == 0)
+    if (fd < 0)
         return -EINVAL;
 
-    csize = lseek(fd, 0, SEEK_END)/max;
-    if (csize < 0)
+    fsize = lseek(fd, 0, SEEK_END);
+    if (fsize < 0)
         return -errno;
+
+    mem = mmap(NULL, fsize, PROT_READ, MAP_PRIVATE, fd, 0);
+    if (!mem)
+        return -errno;
+
+    ret = fchunk_read(mem, fsize, max, cb, user);
+    munmap(mem, fsize);
+
+    return ret;
+}
+
+int fchunk_read(const char *mem, size_t size, unsigned max,
+    fchunk_cb_t cb, void *user) {
+    size_t csize, offset;
+    unsigned idx;
+
+    if (!mem || !cb || max == 0)
+        return -EINVAL;
+
+    csize = size/max;
+    if (csize == 0)
+        csize = 1;
 
     offset = 0;
     for (idx=0; idx<max; ++idx) {
         fchunk_t chunk = {
             .offset = offset,
-            .count = csize,
+            .count = MIN(csize, size-offset),
             .index = idx,
+            .mem = mem,
         };
-        while (true) {
-            char c;
-            ssize_t res = pread(fd, &c, 1, chunk.offset + chunk.count);
-            if (res < 0)
-                return -errno;
-            if (res == 0)
-                break;
+        while (chunk.offset + chunk.count < size) {
+            char c = mem[chunk.offset + chunk.count];
             if (is_sep(c))
                 break;
             ++chunk.count;
         }
         offset += chunk.count;
-        cb(fd, &chunk, user);
+        cb(&chunk, user);
+        if (offset >= size)
+            break;
     }
 
     return 0;
+}
+
+void fchunk_read_word(const char *mem, size_t size,
+    fchunk_cb_t cb, void *user) {
+    bool is_word = false;
+    size_t offset = 0, woffset = 0;
+    size_t count = 0;
+    unsigned idx = 0;
+
+    while (offset < size) {
+        if (is_sep(mem[offset])) {
+            if (is_word) {
+                fchunk_t chunk = {
+                    .offset = woffset,
+                    .count = count,
+                    .index = idx++,
+                    .mem = mem,
+                };
+                is_word = false;
+                cb(&chunk, user);
+            }
+            count = 0;
+        } else {
+            is_word = true;
+            woffset = offset;
+            ++count;
+        }
+        ++offset;
+    }
+    if (is_word) {
+        fchunk_t chunk = {
+            .offset = woffset,
+            .count = count,
+            .index = idx,
+            .mem = mem,
+        };
+        cb(&chunk, user);
+    }
 }

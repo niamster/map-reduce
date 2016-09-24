@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <assert.h>
 #include <sys/mman.h>
 #include <sys/param.h>
 
@@ -16,7 +17,7 @@ void die(const char *fmt, ...) {
     vprintf(fmt, ap);
     va_end(ap);
 
-    exit(1);
+    assert(0);
 }
 
 bool is_sep(char c) {

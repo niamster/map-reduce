@@ -19,10 +19,10 @@ def options(opt):
 
 def build(bld):
     cflags = {
-        'cflags'        : ['-O2', '-Wall', '-Wextra', '-Werror', '-std=gnu11', '-Wpedantic', '-D_GNU_SOURCE'],
+        'cflags'        : ['-O2', '-Wall', '-Wextra', '-Werror', '-std=gnu11'],
     }
     cxxflags = {
-        'cxxflags'      : ['-O2', '-Wall', '-Wextra', '-Werror', '-std=gnu++14', '-Wpedantic', '-D_GNU_SOURCE'],
+        'cxxflags'      : ['-O2', '-Wall', '-Wextra', '-Werror', '-std=gnu++14'],
     }
     if bld.options.mode == 'debug':
         cflags['cflags'] += ['-g', '-O0']

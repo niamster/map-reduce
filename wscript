@@ -16,6 +16,7 @@ def options(opt):
     opt.load('compiler_c')
     opt.load('compiler_cxx')
     opt.add_option('--mode', action='store', default='release', help='Compile mode: release or debug')
+    opt.add_option('--san', action='store', default=None, help='Enable specific sanitizer')
 
 def build(bld):
     cflags = {
@@ -24,8 +25,12 @@ def build(bld):
     cxxflags = {
         'cxxflags'      : ['-O2', '-Wall', '-Wextra', '-Werror', '-std=gnu++14'],
     }
-    if bld.options.mode == 'debug':
+    if bld.options.mode == 'debug' or bld.options.san:
         cflags['cflags'] += ['-g', '-O0']
+    if bld.options.san:
+        opt = '-fsanitize=%s' % bld.options.san
+        cflags['cflags'] += [opt]
+        cflags['ldflags'] = [opt]
     source = bld.path.ant_glob('src/*.c', excl=['**/%s_*.c' % x for x in ['test', 'bench']]+['**/main.c'])
 
     features = {

@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <sys/types.h>
 
+#define ARRAY_SIZE(x) ((unsigned)(sizeof(x)/sizeof(x[0])))
+
 void die(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
 bool is_sep(char c);
 

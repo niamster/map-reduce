@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <time.h>
+#include <assert.h>
 
 #include "utils.h"
 
@@ -27,6 +28,7 @@ static void _test_fchunk_read_word_cb(fchunk_t *chunk, void *user) {
     ++d->count;
     words = realloc(d->words, d->woff+chunk->count+1);
     CU_ASSERT_PTR_NOT_NULL_FATAL(words);
+    assert(words); // make clang analyzer happy
     d->words = words;
     memcpy(d->words+d->woff, chunk->mem+chunk->offset, chunk->count);
     d->woff += chunk->count;
@@ -42,7 +44,6 @@ static void _test_fchunk_read_cb(fchunk_t *chunk, void *user) {
 
 void test_fchunk_read(void) {
     const char tbuf[] = "a b c d";
-    char *mem = malloc(sizeof(tbuf));
     _test_fchunk_read_d_t d = {
         .count = 0,
         .mem = malloc(sizeof(tbuf)),
@@ -50,12 +51,11 @@ void test_fchunk_read(void) {
         .words = NULL,
         .woff = 0,
     };
-    CU_ASSERT_PTR_NOT_NULL_FATAL(mem);
     CU_ASSERT_PTR_NOT_NULL_FATAL(d.mem);
+    assert(d.mem); // make clang analyzer happy
     int jdx; for (jdx=0; jdx<2; ++jdx) {
         int idx; for (idx=1; idx<10; ++idx) {
             d.offset = d.count = 0;
-            free(d.words), d.words = NULL;
             d.woff = 0;
             memset(d.mem, 0, sizeof(tbuf));
             CU_ASSERT_EQUAL_FATAL(fchunk_read(tbuf, sizeof(tbuf)-3+jdx, idx, _test_fchunk_read_cb, &d), 0);
@@ -64,13 +64,14 @@ void test_fchunk_read(void) {
             CU_ASSERT_EQUAL_FATAL(d.count, 3);
             CU_ASSERT_EQUAL_FATAL(memcmp(tbuf, d.mem, sizeof(tbuf)-3+jdx), 0);
             CU_ASSERT_PTR_NOT_NULL_FATAL(d.words);
+            assert(d.words); // make clang analyzer happy
             CU_ASSERT_EQUAL_FATAL(d.woff, 3);
             CU_ASSERT_EQUAL_FATAL(strlen(d.words), 3);
             CU_ASSERT_EQUAL_FATAL(memcmp(d.words, "abc", 3), 0);
+            free(d.words), d.words = NULL;
         }
     }
     free(d.mem);
-    free(mem);
 }
 
 int init_suite(void) {

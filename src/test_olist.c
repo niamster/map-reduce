@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <sys/param.h>
 #include <time.h>
+#include <assert.h>
 
 #include "utils.h"
 
@@ -26,13 +27,18 @@ void __test_insert_iter(const char *key, olentry_t *entries, olentry_t *values, 
     insert_iter_data_t *data = user;
     olentry_t *el = entries;
 
+    CU_ASSERT_PTR_NOT_NULL_FATAL(key);
     CU_ASSERT_PTR_NOT_NULL_FATAL(entries);
+    assert(data);
 
-    if (data->prev)
+    if (data->prev) {
+        assert(data->prev && key); // make clang analyzer happy
         CU_ASSERT_FATAL(strcmp(data->prev, key) < 0);
+    }
 
     ++data->uniq;
     while (true) {
+        assert(el && el->key && key); // make clang analyzer happy
         CU_ASSERT_EQUAL_FATAL(strcmp(el->key, key), 0);
         ++data->total;
         if (el->next == -1)
@@ -92,6 +98,7 @@ void test_insert_dup(void) {
 
     CU_ASSERT_PTR_NOT_NULL_FATAL(items);
 
+    assert(items && max > 0); // make clang analyzer happy
     for (idx=0; idx<max; ++idx)
         items[idx] = samples[rand()%ARRAY_SIZE(samples)];
     for (idx=0; idx<ARRAY_SIZE(samples); ++idx)

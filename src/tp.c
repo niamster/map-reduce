@@ -117,7 +117,6 @@ static void __wake_sync(void *user) {
 /* API */
 
 int tp_init(tp_t *tp, unsigned threads) {
-    pthread_mutexattr_t mattr;
     int err;
 
     if (!tp || !threads)
@@ -126,15 +125,9 @@ int tp_init(tp_t *tp, unsigned threads) {
     memset(tp, 0, sizeof(tp_t));
     dllist_init(&tp->tasks);
 
-    err = pthread_mutexattr_init(&mattr);
+    err = pthread_mutex_init_ec(&tp->lock);
     if (err != 0)
         return err;
-    err = pthread_mutexattr_settype(&mattr, PTHREAD_MUTEX_ERRORCHECK);
-    if (err != 0)
-        goto fail;
-    err = pthread_mutex_init(&tp->lock, &mattr);
-    if (err != 0)
-        goto fail;
 
     err = pthread_cond_init(&tp->cond, NULL);
     if (err != 0)
@@ -155,12 +148,9 @@ int tp_init(tp_t *tp, unsigned threads) {
     }
     tp->state = TP_ST_ACTIVE;
 
-    pthread_mutexattr_destroy(&mattr);
-
     return 0;
 
   fail:
-    pthread_mutexattr_destroy(&mattr);
     tp_destroy(tp);
 
     return err;
@@ -192,7 +182,7 @@ int tp_sync(tp_t *tp) {
     tp->state = TP_ST_SYNC;
     __unlock(tp);
 
-    err = pthread_mutex_init(&wake.mtx, NULL);
+    err = pthread_mutex_init_ec(&wake.mtx);
     if (err != 0)
         goto out;
     err = pthread_cond_init(&wake.cond, NULL);

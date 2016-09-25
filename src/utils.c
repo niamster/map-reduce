@@ -5,6 +5,7 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
+#include <pthread.h>
 #include <sys/mman.h>
 #include <sys/param.h>
 
@@ -36,6 +37,25 @@ bool is_sep(char c) {
     }
 
     return false;
+}
+
+int pthread_mutex_init_ec(pthread_mutex_t *mtx) {
+    pthread_mutexattr_t mattr;
+    int err;
+
+    err = pthread_mutexattr_init(&mattr);
+    if (err != 0)
+        return err;
+    err = pthread_mutexattr_settype(&mattr, PTHREAD_MUTEX_ERRORCHECK);
+    if (err != 0)
+        goto fail;
+
+    err = pthread_mutex_init(mtx, &mattr);
+
+  fail:
+    pthread_mutexattr_destroy(&mattr);
+
+    return err;
 }
 
 int fchunk_read_fd(int fd, unsigned max, fchunk_cb_t cb, void *user) {

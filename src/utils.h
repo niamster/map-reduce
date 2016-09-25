@@ -7,6 +7,8 @@
 void die(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
 bool is_sep(char c);
 
+int pthread_mutex_init_ec(pthread_mutex_t *mtx);
+
 typedef struct {
     unsigned index;
     off_t offset;

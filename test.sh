@@ -11,6 +11,7 @@ san=(address,undefined thread)
 ./waf clean
 ./waf configure
 ./waf
+
 while true; do
     for s in ${san[@]}; do
         ./waf --san=$s --mode=debug || exit $?
@@ -23,4 +24,5 @@ while true; do
             sleep 0.5
         done
     done
+    [ "x$1" = "xonce" ] && break
 done

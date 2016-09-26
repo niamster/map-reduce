@@ -6,13 +6,16 @@
 #include "olist.h"
 
 #if !defined(OLIST_INIT_SIZE)
-#define OLIST_INIT_SIZE 32
+#define OLIST_INIT_SIZE 0
 #endif
 
 /* IMPL */
 
 static int ____resize(olist_storage_t *storage, unsigned elsize, unsigned count) {
     void *elements;
+
+    if (count <= storage->size)
+        return 0;
 
     elements = realloc(storage->elements, count*elsize);
     if (!elements)

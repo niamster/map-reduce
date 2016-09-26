@@ -59,12 +59,15 @@ int pthread_mutex_init_ec(pthread_mutex_t *mtx) {
     return err;
 }
 
-int fchunk_read_fd(int fd, unsigned max, fchunk_cb_t cb, void *user) {
+int fchunk_read_fd(int fd, unsigned max, fchunk_cb_t cb, void *user, void **map, size_t *len) {
     off_t fsize;
     char *mem;
     int ret;
 
     if (fd < 0)
+        return -EINVAL;
+
+    if ((map && !len) || (len && !map))
         return -EINVAL;
 
     fsize = lseek(fd, 0, SEEK_END);
@@ -76,7 +79,11 @@ int fchunk_read_fd(int fd, unsigned max, fchunk_cb_t cb, void *user) {
         return -errno;
 
     ret = fchunk_read(mem, fsize, max, cb, user);
-    munmap(mem, fsize);
+    if (map && ret == 0) {
+        *map = mem;
+        *len = fsize;
+    } else
+        munmap(mem, fsize);
 
     return ret;
 }

@@ -63,9 +63,9 @@ static int __tp_push(tp_t *tp, tp_cb_t tsk, void *user, tp_ta_t action) {
     return 0;
 }
 
-static void __wake_sync(void *user);
 static void *__worker(void *data) {
-    tp_t *tp = data;
+    tp_t_t *me = data;
+    tp_t *tp = me->tp;
     bool running = true;
 
     while (running) {
@@ -76,6 +76,7 @@ static void *__worker(void *data) {
             __wait(tp);
         node = dllist_first(&tp->tasks);
         dllist_detach(node);
+        __sync_add_and_fetch(&me->active, 1);
         __unlock(tp);
 
         task = container_of(node, tp_task_t, list);
@@ -88,7 +89,7 @@ static void *__worker(void *data) {
                 running = false;
                 break;
         }
-
+        __sync_sub_and_fetch(&me->active, 1);
         free(task);
     }
 
@@ -134,7 +135,8 @@ int tp_init(tp_t *tp, unsigned threads) {
 
     unsigned idx; for (idx=0; idx<threads; ++idx) {
         tp_t_t *t = &tp->threads[idx];
-        err = pthread_create(&t->thread, NULL, __worker, tp);
+        t->tp = tp;
+        err = pthread_create(&t->thread, NULL, __worker, t);
         if (err != 0)
             goto fail;
     }
@@ -180,8 +182,9 @@ int tp_sync(tp_t *tp) {
     err = pthread_cond_init(&wake.cond, NULL);
     if (err != 0)
         goto out;
-    wake.done = false;
 
+  retry:
+    wake.done = false;
     err = __tp_push(tp, __wake_sync, &wake, TP_TA_EXE);
     if (err != 0)
         goto out;
@@ -201,6 +204,13 @@ int tp_sync(tp_t *tp) {
         err = pthread_mutex_unlock(&wake.mtx);
         if (err != 0)
             break;
+
+        /* The queue is empty but another thread might still be running. */
+        unsigned idx; for (idx=0; idx<tp->t_max; ++idx) {
+            tp_t_t *t = &tp->threads[idx];
+            if (__sync_sub_and_fetch(&t->active, 0))
+                goto retry;
+        }
     }
 
   out:

@@ -17,11 +17,16 @@ typedef enum {
     TP_ST_INACTIVE,
 } tp_st_t;
 
-typedef struct {
-    pthread_t thread;
-} tp_t_t;
+struct tp;
+typedef struct tp tp_t;
 
 typedef struct {
+    unsigned long active;
+    pthread_t thread;
+    tp_t *tp;
+} tp_t_t;
+
+typedef struct tp {
     tp_st_t state;
     dllist_t tasks;
     unsigned t_max;

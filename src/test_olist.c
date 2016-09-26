@@ -100,13 +100,30 @@ void test_insert_dup(void) {
     unsigned idx;
     olist_t olist;
 
-    CU_ASSERT_PTR_NOT_NULL_FATAL(items);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(items && max > 0);
 
     assert(items && max > 0); // make clang analyzer happy
     for (idx=0; idx<max; ++idx)
         items[idx] = samples[rand()%ARRAY_SIZE(samples)];
-    for (idx=0; idx<ARRAY_SIZE(samples); ++idx)
-        items[rand()%max] = samples[idx];
+
+    unsigned long present;
+  reseed:
+    present = 0;
+    for (idx=0; idx<ARRAY_SIZE(samples); ++idx) {
+        bool found = false;
+        unsigned jdx; for (jdx=0; jdx<max; ++jdx) {
+            if (strstr(samples[idx], items[jdx]) == 0) {
+                found = true;
+                break;
+            }
+        }
+        if (found)
+            ++present;
+        else
+            items[rand()%max] = samples[idx];
+    }
+    if (present != ARRAY_SIZE(samples))
+        goto reseed;
 
     CU_ASSERT_EQUAL_FATAL(olist_init(&olist), 0);
 

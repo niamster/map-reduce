@@ -12,17 +12,25 @@ san=(address,undefined thread)
 ./waf configure
 ./waf
 
+rtests() {
+    for t in ./build/test*; do
+        [ -x $t -a -f $t ] || continue
+        echo "=============================="
+        echo "Running $(basename $t) with $*"
+        $t || exit $?
+        echo "=============================="
+        sleep 0.5
+    done
+}
+
 while true; do
     for s in ${san[@]}; do
         ./waf --san=$s --mode=debug || exit $?
-        for t in ./build/test*; do
-            [ -x $t -a -f $t ] || continue
-            echo "=============================="
-            echo "Running $(basename $t) with $s"
-            $t || exit $?
-            echo "=============================="
-            sleep 0.5
-        done
+        rtests $s
     done
+    ./waf --mode=debug || exit $?
+    rtests $s
+    ./waf || exit $?
+    rtests $s
     [ "x$1" = "xonce" ] && break
 done

@@ -10,8 +10,9 @@
 void test_issep(void) {
     CU_ASSERT_TRUE(is_sep(' '));
     CU_ASSERT_TRUE(is_sep(':'));
-    CU_ASSERT_FALSE(is_sep('\0'));
+    CU_ASSERT_TRUE(is_sep('\0'));
     CU_ASSERT_FALSE(is_sep('/'));
+    CU_ASSERT_FALSE(is_sep('~'));
 }
 
 typedef struct {
@@ -74,6 +75,36 @@ void test_fchunk_read(void) {
     free(d.mem);
 }
 
+void test_fchunk_read_2(void) {
+    const char tbuf[] = "ab cd ef";
+    _test_fchunk_read_d_t d = {
+        .count = 0,
+        .mem = malloc(sizeof(tbuf)),
+        .offset = 0,
+        .words = NULL,
+        .woff = 0,
+    };
+    CU_ASSERT_PTR_NOT_NULL_FATAL(d.mem);
+    assert(d.mem); // make clang analyzer happy
+    int idx; for (idx=1; idx<10; ++idx) {
+        d.offset = d.count = 0;
+        d.woff = 0;
+        memset(d.mem, 0, sizeof(tbuf));
+        CU_ASSERT_EQUAL_FATAL(fchunk_read(tbuf, sizeof(tbuf), idx, _test_fchunk_read_cb, &d), 0);
+        memset(d.mem, 0, sizeof(tbuf));
+        memcpy(d.mem, tbuf, sizeof(tbuf));
+        CU_ASSERT_EQUAL_FATAL(d.count, 3);
+        CU_ASSERT_EQUAL_FATAL(memcmp(tbuf, d.mem, sizeof(tbuf)), 0);
+        CU_ASSERT_PTR_NOT_NULL_FATAL(d.words);
+        assert(d.words); // make clang analyzer happy
+        CU_ASSERT_EQUAL_FATAL(d.woff, 6);
+        CU_ASSERT_EQUAL_FATAL(strlen(d.words), 6);
+        CU_ASSERT_EQUAL_FATAL(memcmp(d.words, "abcdef", 6), 0);
+        free(d.words), d.words = NULL;
+    }
+    free(d.mem);
+}
+
 int init_suite(void) {
     srand((unsigned)time(NULL));
 
@@ -97,6 +128,8 @@ int main(int argc, char **argv) {
    if (!(CU_add_test(suite, "issep", test_issep)))
        goto out;
    if (!(CU_add_test(suite, "fchunk_read", test_fchunk_read)))
+       goto out;
+   if (!(CU_add_test(suite, "fchunk_read_2", test_fchunk_read_2)))
        goto out;
 
    CU_basic_run_tests();

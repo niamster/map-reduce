@@ -33,6 +33,7 @@ bool is_sep(char c) {
         case ':':
         case ';':
         case '?':
+        case '\0':
             return true;
     }
 
@@ -136,8 +137,10 @@ void fchunk_read_word(const char *mem, size_t size,
             }
             count = 0;
         } else {
-            is_word = true;
-            woffset = offset;
+            if (!is_word) {
+                is_word = true;
+                woffset = offset;
+            }
             ++count;
         }
         ++offset;

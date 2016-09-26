@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <sys/types.h>
+#include <string.h>
 #include <pthread.h>
 
 #define ARRAY_SIZE(x) ((unsigned)(sizeof(x)/sizeof(x[0])))

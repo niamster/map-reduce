@@ -21,3 +21,9 @@ bar=3
 baz=1
 foo=1
 qux=1
+
+# Build
+Run `./waf configure` to configure with default settings.
+Run `./waf build` to build in release mode or `./waf build --mode=debug` with debug symbols and w/o CC optimizations.
+The output in the `build` directory.
+See `test.sh` for details.

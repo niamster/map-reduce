@@ -28,8 +28,7 @@ typedef struct {
 typedef struct {
     __mr_data_t *mdata;
     ukey_t *key;
-    olentry_t *entries;
-    olentry_t *values;
+    long long entry;
 } __mr_iter_data_t;
 
 static void _mr_output(ukey_t *key, olentry_t *entries, olentry_t *values, void *user) {
@@ -46,7 +45,7 @@ static void _mr_iter_task(void *user) {
     __mr_iter_data_t *idata = user;
     __mr_data_t *mdata = idata->mdata;
 
-    mdata->reduce(mdata->mr, idata->key, idata->entries, idata->values, mdata->user);
+    mdata->reduce(mdata->mr, idata->key, idata->entry, mdata->user);
 
     free(idata);
 }
@@ -63,8 +62,7 @@ static void __mr_iter(ukey_t *key, olentry_t *entries, olentry_t *values, void *
     assert(idata);
     idata->mdata = mdata;
     idata->key = key;
-    idata->entries = entries;
-    idata->values = values;
+    idata->entry = entries - values;
 
     err = tp_push(&mr->tp, _mr_iter_task, idata);
     if (err != 0)
@@ -215,6 +213,12 @@ int mr_emit(mr_t *mr, ukey_t *key, void *value) {
      * so if 'output' task touches only the first value - we are safe.
      */
     return wtable_insert(&mr->input, key, value);
+}
+
+int mr_get_entry(mr_t *mr, ukey_t *key, long long pos, olentry_t *entry) {
+   if (!mr)
+        return -EINVAL;
+   return wtable_get_entry(&mr->input, key, pos, entry);
 }
 
 void mr_destroy(mr_t *mr) {

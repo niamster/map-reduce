@@ -103,6 +103,21 @@ int wtable_iterate(wtable_t *wtable, olist_iter_t iter, void *user) {
     return 0;
 }
 
+int wtable_get_entry(wtable_t *wtable, ukey_t *key, long long pos, olentry_t *entry) {
+    if (!wtable || !key)
+        return -EINVAL;
+
+    unsigned hval = _fnv_32(key->key[0], wtable->bits);
+    wentry_t *w = &wtable->entries[hval];
+    int err;
+
+    __mtx_lock(&w->lock);
+    err = olist_get_entry(&w->list, pos, entry);
+    __mtx_unlock(&w->lock);
+
+    return err;
+}
+
 void wtable_destroy(wtable_t *wtable) {
     if (!wtable) return;
 

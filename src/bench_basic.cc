@@ -19,17 +19,24 @@ static void _basic_map(mr_t *mr, ukey_t *key, void *user) {
         die("Failed to emit an intermediate key: %d\n", res);
 }
 
-static void _basic_reduce(mr_t *mr, ukey_t *key, olentry_t *entries, olentry_t *values, void *user) {
+static void _basic_reduce(mr_t *mr, ukey_t *key, long long entry, void *user) {
     unsigned long count = 0;
-    olentry_t *el = entries;
+    olentry_t el;
     int res;
     (void)user;
 
+    res = mr_get_entry(mr, key, entry, &el);
+    if (res != 0)
+        die("Failed to get entry: %d\n", res);
+
     while (true) {
         ++count;
-        if (el->next == -1)
+        if (el.next == -1)
             break;
-        el = &values[el->next];
+
+        res = mr_get_entry(mr, key, el.next, &el);
+        if (res != 0)
+            die("Failed to get entry: %d\n", res);
     }
 
     res = mr_emit(mr, key, (void *)count);

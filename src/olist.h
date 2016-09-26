@@ -33,6 +33,7 @@ typedef void (*olist_iter_t)(ukey_t *key, olentry_t *entries, olentry_t *values,
 int olist_init(olist_t *olist);
 int olist_insert(olist_t *olist, ukey_t *key, void *value);
 int olist_iterate(olist_t *olist, olist_iter_t iter, void *user);
+int olist_get_entry(olist_t *olist, long long pos, olentry_t *entry);
 void olist_destroy(olist_t *olist);
 
 #endif

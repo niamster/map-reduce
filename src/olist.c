@@ -158,6 +158,15 @@ int olist_iterate(olist_t *olist, olist_iter_t iter, void *user) {
     return 0;
 }
 
+int olist_get_entry(olist_t *olist, long long pos, olentry_t *entry) {
+    if (!olist || !entry)
+        return -EINVAL;
+
+    *entry = olist->values.values[pos];
+
+    return 0;
+}
+
 void olist_destroy(olist_t *olist) {
     unsigned idx; for (idx=0; idx<olist->values.count; ++idx) {
         olentry_t *el = &olist->values.values[idx];

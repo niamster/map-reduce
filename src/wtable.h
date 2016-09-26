@@ -11,6 +11,10 @@
 #include "utils.h"
 #include "olist.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct {
     olist_t list;
     pthread_mutex_t lock;
@@ -27,5 +31,9 @@ unsigned wtable_hash(wtable_t *wtable, char c);
 int wtable_insert(wtable_t *wtable, ukey_t *key, void *value);
 int wtable_iterate(wtable_t *wtable, olist_iter_t iter, void *user);
 void wtable_destroy(wtable_t *wtable);
+
+#ifdef __cplusplus
+};
+#endif
 
 #endif

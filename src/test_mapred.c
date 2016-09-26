@@ -24,18 +24,15 @@ static void _basic_map(mr_t *mr, ukey_t *key, void *user) {
     int res;
     (void)user;
 
-    res = mr_emit(mr, key, NULL);
+    res = mr_emit_intermediate(mr, key, NULL);
     if (res != 0)
         die("Failed to emit a key: %d\n", res);
 }
 
 static void _basic_reduce(mr_t *mr, ukey_t *key, olentry_t *entries, olentry_t *values, void *user) {
-    unsigned count = 0;
+    unsigned long count = 0;
     olentry_t *el = entries;
-    _basic_data_t *bdata = user;
-    char tmp[32];
-    int res;
-    (void)mr;
+    (void)user;
 
     while (true) {
         ++count;
@@ -44,7 +41,18 @@ static void _basic_reduce(mr_t *mr, ukey_t *key, olentry_t *entries, olentry_t *
         el = &values[el->next];
     }
 
-    res = snprintf(tmp, sizeof(tmp), "=%u\n", count);
+    mr_emit(mr, key, (void *)count);
+
+}
+
+static void _basic_output(ukey_t *key, olentry_t *entries, olentry_t *values, void *user) {
+    olentry_t *el = entries;
+    _basic_data_t *bdata = user;
+    char tmp[32];
+    int res;
+    (void)values;
+
+    res = snprintf(tmp, sizeof(tmp), "=%lu\n", (unsigned long)el->value);
 
     char *out = realloc(bdata->out, bdata->len + key->len + res + 1);
     CU_ASSERT_PTR_NOT_NULL_FATAL(out);
@@ -72,6 +80,7 @@ void test_basic(void) {
         };
         CU_ASSERT_EQUAL_FATAL(mr_init(&mr, t), 0);
         CU_ASSERT_EQUAL_FATAL(mr_process(&mr, text, sizeof(text), _basic_map, _basic_reduce, &bdata), 0);
+        CU_ASSERT_EQUAL_FATAL(wtable_iterate(&mr.output, _basic_output, &bdata), 0);
         mr_destroy(&mr);
 
         CU_ASSERT_PTR_NOT_NULL_FATAL(bdata.out);

@@ -35,15 +35,16 @@ static void wc_map(mr_t *mr, ukey_t *key, void *user) {
     int res;
     (void)user;
 
-    res = mr_emit(mr, key, NULL);
+    res = mr_emit_intermediate(mr, key, NULL);
     if (res != 0)
-        die("Failed to emit a key: %d\n", res);
+        die("Failed to emit an intermediate key: %d\n", res);
 }
 
 static void wc_reduce(mr_t *mr, ukey_t *key, olentry_t *entries, olentry_t *values, void *user) {
-    unsigned count = 0;
+    unsigned long count = 0;
     olentry_t *el = entries;
-    (void)user, (void)mr;
+    int res;
+    (void)user;
 
     while (true) {
         ++count;
@@ -51,8 +52,19 @@ static void wc_reduce(mr_t *mr, ukey_t *key, olentry_t *entries, olentry_t *valu
             break;
         el = &values[el->next];
     }
-    printf("%s=%u\n", key->key, count);
+
+    res = mr_emit(mr, key, (void *)count);
+    if (res != 0)
+        die("Failed to emit a key: %d\n", res);
 }
+
+static void wc_output(ukey_t *key, olentry_t *entries, olentry_t *values, void *user) {
+    olentry_t *el = entries;
+    (void)values, (void)user;
+
+    printf("%s=%lu\n", key->key, (unsigned long)el->value);
+}
+
 
 int main(int argc, char **argv) {
     const char *prog = argv[0];
@@ -80,6 +92,9 @@ int main(int argc, char **argv) {
     res = mr_process_fd(&mr, fileno(fh), wc_map, wc_reduce, NULL);
     if (res != 0)
         die("Failed to process MR: %d\n", res);
+    res = wtable_iterate(&mr.output, wc_output, NULL);
+    if (res != 0)
+        die("Failed to process output: %d\n", res);
     mr_destroy(&mr);
 
     fclose(fh);

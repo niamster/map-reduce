@@ -66,6 +66,8 @@ def build(bld):
             'stlib'         : ['hayai_main'],
             'lib'           : ['pthread'],
         }
+        if bld.options.san:
+            features['lib'] += ['ubsan', 'asan', 'tsan']
         features.update(cxxflags)
         bld.program(**features)
 

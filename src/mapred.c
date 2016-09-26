@@ -24,10 +24,40 @@ typedef struct {
     fchunk_t chunk;
 } __mr_chunk_data_t;
 
+typedef struct {
+    __mr_data_t *mdata;
+    ukey_t *key;
+    olentry_t *entries;
+    olentry_t *values;
+} __mr_iter_data_t;
+
+static void _mr_iter_task(void *user) {
+    __mr_iter_data_t *idata = user;
+    __mr_data_t *mdata = idata->mdata;
+
+    mdata->reduce(mdata->mr, idata->key, idata->entries, idata->values, mdata->user);
+
+    free(idata);
+}
+
 static void __mr_iter(ukey_t *key, olentry_t *entries, olentry_t *values, void *user) {
     __mr_data_t *mdata = user;
+    mr_t *mr = mdata->mr;
+    __mr_iter_data_t *idata;
+    int err;
 
-    mdata->reduce(mdata->mr, key, entries, values, mdata->user);
+    idata = calloc(1, sizeof(__mr_iter_data_t));
+    if (!idata)
+        die("Can't allocate idata\n");
+    assert(idata);
+    idata->mdata = mdata;
+    idata->key = key;
+    idata->entries = entries;
+    idata->values = values;
+
+    err = tp_push(&mr->tp, _mr_iter_task, idata);
+    if (err != 0)
+        die("Failed to push chunk process task: %d", err);
 }
 
 static void _mr_chunk_process_word(fchunk_t *chunk, void *user) {
@@ -77,9 +107,13 @@ int mr_init(mr_t *mr, unsigned threads) {
     if (!mr)
         return -EINVAL;
 
-    err = wtable_init(&mr->table, MR_TABLE_BITS);
+    err = wtable_init(&mr->input, MR_TABLE_BITS);
     if (err != 0)
         return err;
+
+    err = wtable_init(&mr->output, MR_TABLE_BITS);
+    if (err != 0)
+        goto fail;
 
     err = tp_init(&mr->tp, threads);
     if (err != 0)
@@ -113,7 +147,12 @@ int mr_process_fd(mr_t *mr, int fd, mr_map_cb_t map, mr_reduce_cb_t reduce, void
     if (err != 0)
         return err;
 
-    err = wtable_iterate(&mr->table, __mr_iter, &mdata);
+    err = wtable_iterate(&mr->input, __mr_iter, &mdata);
+    if (err != 0)
+        return err;
+
+    err = tp_sync(&mr->tp);
+
     munmap(mem, len);
 
     return err;
@@ -136,21 +175,33 @@ int mr_process(mr_t *mr, const char *mem, size_t size, mr_map_cb_t map, mr_reduc
     if (err != 0)
         return err;
 
-    return wtable_iterate(&mr->table, __mr_iter, &mdata);
+    err = wtable_iterate(&mr->input, __mr_iter, &mdata);
+    if (err != 0)
+        return err;
+
+    return tp_sync(&mr->tp);
+}
+
+int mr_emit_intermediate(mr_t *mr, ukey_t *key, void *value) {
+    if (!mr)
+        return -EINVAL;
+
+    return wtable_insert(&mr->input, key, value);
 }
 
 int mr_emit(mr_t *mr, ukey_t *key, void *value) {
     if (!mr)
         return -EINVAL;
 
-    return wtable_insert(&mr->table, key, value);
+    return wtable_insert(&mr->output, key, value);
 }
 
 void mr_destroy(mr_t *mr) {
     if (!mr)
         return;
 
-    wtable_destroy(&mr->table);
+    wtable_destroy(&mr->input);
+    wtable_destroy(&mr->output);
     tp_destroy(&mr->tp);
 
     memset(mr, 0, sizeof(mr_t));

@@ -10,7 +10,8 @@ extern "C" {
 #endif
 
 typedef struct {
-    wtable_t table;
+    wtable_t input;
+    wtable_t output;
     tp_t tp;
     unsigned threads;
 } mr_t;
@@ -21,6 +22,7 @@ typedef void (*mr_reduce_cb_t)(mr_t *mr, ukey_t *key, olentry_t *entries, olentr
 int mr_init(mr_t *mr, unsigned threads);
 int mr_process_fd(mr_t *mr, int fd, mr_map_cb_t map, mr_reduce_cb_t reduce, void *user);
 int mr_process(mr_t *mr, const char *mem, size_t size, mr_map_cb_t map, mr_reduce_cb_t reduce, void *user);
+int mr_emit_intermediate(mr_t *mr, ukey_t *key, void *value);
 int mr_emit(mr_t *mr, ukey_t *key, void *value);
 void mr_destroy(mr_t *mr);
 

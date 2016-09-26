@@ -23,7 +23,7 @@ typedef struct {
     const char *prev;
 } insert_iter_data_t;
 
-void __test_insert_iter(const char *key, olentry_t *entries, olentry_t *values, void *user) {
+void __test_insert_iter(ukey_t *key, olentry_t *entries, olentry_t *values, void *user) {
     insert_iter_data_t *data = user;
     olentry_t *el = entries;
 
@@ -33,26 +33,30 @@ void __test_insert_iter(const char *key, olentry_t *entries, olentry_t *values, 
 
     if (data->prev) {
         assert(data->prev && key); // make clang analyzer happy
-        CU_ASSERT_FATAL(strcmp(data->prev, key) < 0);
+        CU_ASSERT_FATAL(strcmp(data->prev, key->key) < 0);
     }
 
     ++data->uniq;
     while (true) {
         assert(el && el->key && key); // make clang analyzer happy
-        CU_ASSERT_EQUAL_FATAL(strcmp(el->key, key), 0);
+        CU_ASSERT_EQUAL_FATAL(strcmp(el->key->key, key->key), 0);
         ++data->total;
         if (el->next == -1)
             break;
         el = &values[el->next];
     }
-    data->prev = key;
+    data->prev = key->key;
 }
 
 void __test_insert_items(wtable_t *wtable, const char *items[], size_t count) {
     unsigned idx;
 
-    for (idx=0; idx<count; ++idx)
-        CU_ASSERT_EQUAL_FATAL(wtable_insert(wtable, items[idx], NULL), 0);
+    for (idx=0; idx<count; ++idx) {
+        ukey_t *key = ukey_init(items[idx], strlen(items[idx]));
+        CU_ASSERT_PTR_NOT_NULL_FATAL(key);
+        CU_ASSERT_EQUAL_FATAL(wtable_insert(wtable, key, NULL), 0);
+        ukey_put(key);
+    }
 }
 
 void test_insert(void) {

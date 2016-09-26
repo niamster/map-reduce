@@ -60,7 +60,7 @@ static int __insert(olist_t *olist, const long long pos) {
         long long epos = index[tgt];
         olentry_t *el = &values[epos];
 
-        int cmp = strcmp(val->key, el->key);
+        int cmp = strcmp(val->key->key, el->key->key);
         if (cmp == 0) { // dup
             val->next = epos;
             index[tgt] = pos;
@@ -111,7 +111,7 @@ int olist_init(olist_t *olist) {
     return res;
 }
 
-int olist_insert(olist_t *olist, const char *key, void *value) {
+int olist_insert(olist_t *olist, ukey_t *key, void *value) {
     olentry_t *val;
     unsigned pos;
     int res;
@@ -129,8 +129,13 @@ int olist_insert(olist_t *olist, const char *key, void *value) {
     val->key = key;
     val->value = value;
     val->next = -1;
+    ukey_get(key);
 
-    return __insert(olist, pos);
+    res = __insert(olist, pos);
+    if (res != 0)
+        ukey_put(key);
+
+    return res;
 }
 
 int olist_iterate(olist_t *olist, olist_iter_t iter, void *user) {
@@ -151,7 +156,13 @@ int olist_iterate(olist_t *olist, olist_iter_t iter, void *user) {
 }
 
 void olist_destroy(olist_t *olist) {
+    unsigned idx; for (idx=0; idx<olist->values.count; ++idx) {
+        olentry_t *el = &olist->values.values[idx];
+        ukey_put(el->key);
+    }
+
     free(olist->values.elements);
     free(olist->index.elements);
+
     memset(olist, 0, sizeof(olist_t));
 }

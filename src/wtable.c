@@ -70,11 +70,11 @@ unsigned wtable_hash(wtable_t *wtable, char c) {
     return _fnv_32(c, wtable->bits);
 }
 
-int wtable_insert(wtable_t *wtable, const char *key, void *value) {
+int wtable_insert(wtable_t *wtable, ukey_t *key, void *value) {
     if (!wtable || !key)
         return -EINVAL;
 
-    unsigned hval = _fnv_32(*key, wtable->bits);
+    unsigned hval = _fnv_32(key->key[0], wtable->bits);
     wentry_t *w = &wtable->entries[hval];
     int err;
 

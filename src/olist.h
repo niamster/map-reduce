@@ -26,6 +26,8 @@ typedef struct {
     olist_storage_t index;
 } olist_t;
 
+/* @entries is a pointer to the first element for a given key. */
+/* @values is a pointer ot the olist values. Used to access next element by offset. */
 typedef void (*olist_iter_t)(ukey_t *key, olentry_t *entries, olentry_t *values, void *user);
 
 int olist_init(olist_t *olist);

@@ -37,10 +37,9 @@ static void _basic_reduce(mr_t *mr, ukey_t *key, olentry_t *entries, olentry_t *
         die("Failed to emit a key: %d\n", res);
 }
 
-static void _basic_output(ukey_t *key, olentry_t *entries, olentry_t *values, void *user) {
-    olentry_t *el = entries;
+static void _basic_output(ukey_t *key, olentry_t *el, void *user) {
     _basic_data_t *bdata = (_basic_data_t *)user;
-    (void)values, (void)key;
+    (void)key;
 
     bdata->total += (unsigned long)el->value;
 }
@@ -60,8 +59,7 @@ class mrFixture : public ::hayai::Fixture {
         mr_t mr;
 
         assert(mr_init(&mr, threads) == 0);
-        assert(mr_process(&mr, data, copies*dlen, _basic_map, _basic_reduce, &bdata) == 0);
-        assert(wtable_iterate(&mr.output, _basic_output, &bdata) == 0);
+        assert(mr_process(&mr, data, copies*dlen, _basic_map, _basic_reduce, _basic_output, &bdata) == 0);
         mr_destroy(&mr);
 
         assert(bdata.total == 5000*copies);

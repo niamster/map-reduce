@@ -45,12 +45,10 @@ static void _basic_reduce(mr_t *mr, ukey_t *key, olentry_t *entries, olentry_t *
 
 }
 
-static void _basic_output(ukey_t *key, olentry_t *entries, olentry_t *values, void *user) {
-    olentry_t *el = entries;
+static void _basic_output(ukey_t *key, olentry_t *el, void *user) {
     _basic_data_t *bdata = user;
     char tmp[32];
     int res;
-    (void)values;
 
     res = snprintf(tmp, sizeof(tmp), "=%lu\n", (unsigned long)el->value);
 
@@ -79,8 +77,7 @@ void test_basic(void) {
             .len = 0,
         };
         CU_ASSERT_EQUAL_FATAL(mr_init(&mr, t), 0);
-        CU_ASSERT_EQUAL_FATAL(mr_process(&mr, text, sizeof(text), _basic_map, _basic_reduce, &bdata), 0);
-        CU_ASSERT_EQUAL_FATAL(wtable_iterate(&mr.output, _basic_output, &bdata), 0);
+        CU_ASSERT_EQUAL_FATAL(mr_process(&mr, text, sizeof(text), _basic_map, _basic_reduce, _basic_output, &bdata), 0);
         mr_destroy(&mr);
 
         CU_ASSERT_PTR_NOT_NULL_FATAL(bdata.out);

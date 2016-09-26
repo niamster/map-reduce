@@ -16,6 +16,7 @@ typedef struct {
     mr_t *mr;
     mr_map_cb_t map;
     mr_reduce_cb_t reduce;
+    mr_output_cb_t output;
     void *user;
 } __mr_data_t;
 
@@ -30,6 +31,16 @@ typedef struct {
     olentry_t *entries;
     olentry_t *values;
 } __mr_iter_data_t;
+
+static void _mr_output(ukey_t *key, olentry_t *entries, olentry_t *values, void *user) {
+    __mr_data_t *mdata = user;
+    olentry_t el = *entries;
+    (void)values;
+
+    el.next = -1;
+
+    mdata->output(key, &el, mdata->user);
+}
 
 static void _mr_iter_task(void *user) {
     __mr_iter_data_t *idata = user;
@@ -111,10 +122,6 @@ int mr_init(mr_t *mr, unsigned threads) {
     if (err != 0)
         return err;
 
-    err = wtable_init(&mr->output, MR_TABLE_BITS);
-    if (err != 0)
-        goto fail;
-
     err = tp_init(&mr->tp, threads);
     if (err != 0)
         goto fail;
@@ -128,11 +135,12 @@ int mr_init(mr_t *mr, unsigned threads) {
     return err;
 }
 
-int mr_process_fd(mr_t *mr, int fd, mr_map_cb_t map, mr_reduce_cb_t reduce, void *user) {
+int mr_process_fd(mr_t *mr, int fd, mr_map_cb_t map, mr_reduce_cb_t reduce, mr_output_cb_t output, void *user) {
     __mr_data_t mdata = {
         .mr = mr,
         .map = map,
         .reduce = reduce,
+        .output = output,
         .user = user,
     };
     void *mem;
@@ -145,24 +153,30 @@ int mr_process_fd(mr_t *mr, int fd, mr_map_cb_t map, mr_reduce_cb_t reduce, void
 
     err = tp_sync(&mr->tp);
     if (err != 0)
-        return err;
+        goto out;
 
     err = wtable_iterate(&mr->input, __mr_iter, &mdata);
     if (err != 0)
-        return err;
+        goto out;
 
     err = tp_sync(&mr->tp);
+    if (err != 0)
+        goto out;
 
+    err = wtable_iterate(&mr->input, _mr_output, &mdata);
+
+  out:
     munmap(mem, len);
 
     return err;
 }
 
-int mr_process(mr_t *mr, const char *mem, size_t size, mr_map_cb_t map, mr_reduce_cb_t reduce, void *user) {
+int mr_process(mr_t *mr, const char *mem, size_t size, mr_map_cb_t map, mr_reduce_cb_t reduce, mr_output_cb_t output, void *user) {
     __mr_data_t mdata = {
         .mr = mr,
         .map = map,
         .reduce = reduce,
+        .output = output,
         .user = user,
     };
     int err;
@@ -179,7 +193,11 @@ int mr_process(mr_t *mr, const char *mem, size_t size, mr_map_cb_t map, mr_reduc
     if (err != 0)
         return err;
 
-    return tp_sync(&mr->tp);
+    err = tp_sync(&mr->tp);
+    if (err != 0)
+        return err;
+
+    return wtable_iterate(&mr->input, _mr_output, &mdata);
 }
 
 int mr_emit_intermediate(mr_t *mr, ukey_t *key, void *value) {
@@ -193,7 +211,10 @@ int mr_emit(mr_t *mr, ukey_t *key, void *value) {
     if (!mr)
         return -EINVAL;
 
-    return wtable_insert(&mr->output, key, value);
+    /* There's a tiny hack build on that wtable pushes the value on top of the stack,
+     * so if 'output' task touches only the first value - we are safe.
+     */
+    return wtable_insert(&mr->input, key, value);
 }
 
 void mr_destroy(mr_t *mr) {
@@ -201,7 +222,6 @@ void mr_destroy(mr_t *mr) {
         return;
 
     wtable_destroy(&mr->input);
-    wtable_destroy(&mr->output);
     tp_destroy(&mr->tp);
 
     memset(mr, 0, sizeof(mr_t));

@@ -58,9 +58,8 @@ static void wc_reduce(mr_t *mr, ukey_t *key, olentry_t *entries, olentry_t *valu
         die("Failed to emit a key: %d\n", res);
 }
 
-static void wc_output(ukey_t *key, olentry_t *entries, olentry_t *values, void *user) {
-    olentry_t *el = entries;
-    (void)values, (void)user;
+static void wc_output(ukey_t *key, olentry_t *el, void *user) {
+    (void)user;
 
     printf("%s=%lu\n", key->key, (unsigned long)el->value);
 }
@@ -89,12 +88,9 @@ int main(int argc, char **argv) {
     res = mr_init(&mr, threads);
     if (res != 0)
         die("Failed to init MR: %d\n", res);
-    res = mr_process_fd(&mr, fileno(fh), wc_map, wc_reduce, NULL);
+    res = mr_process_fd(&mr, fileno(fh), wc_map, wc_reduce, wc_output, NULL);
     if (res != 0)
         die("Failed to process MR: %d\n", res);
-    res = wtable_iterate(&mr.output, wc_output, NULL);
-    if (res != 0)
-        die("Failed to process output: %d\n", res);
     mr_destroy(&mr);
 
     fclose(fh);

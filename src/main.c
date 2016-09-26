@@ -22,6 +22,7 @@
 #include <stdbool.h>
 
 #include "utils.h"
+#include "mapred.h"
 
 void usage(const char *prog) {
     printf("%s <path> <N>\n", prog);
@@ -30,11 +31,36 @@ void usage(const char *prog) {
     exit(1);
 }
 
+static void wc_map(mr_t *mr, ukey_t *key, void *user) {
+    int res;
+    (void)user;
+
+    res = mr_emit(mr, key, NULL);
+    if (res != 0)
+        die("Failed to emit a key: %d\n", res);
+}
+
+static void wc_reduce(mr_t *mr, ukey_t *key, olentry_t *entries, olentry_t *values, void *user) {
+    unsigned count = 0;
+    olentry_t *el = entries;
+    (void)user, (void)mr;
+
+    while (true) {
+        ++count;
+        if (el->next == -1)
+            break;
+        el = &values[el->next];
+    }
+    printf("%s=%u\n", key->key, count);
+}
+
 int main(int argc, char **argv) {
     const char *prog = argv[0];
     const char *file = NULL;
     int threads = 0;
     FILE *fh = NULL;
+    mr_t mr;
+    int res;
 
     if (argc != 3)
         usage(prog);
@@ -47,6 +73,14 @@ int main(int argc, char **argv) {
     fh = fopen(file, "r");
     if (!fh)
         die("Failed to open %s: %s\n", file, strerror(errno));
+
+    res = mr_init(&mr, threads);
+    if (res != 0)
+        die("Failed to init MR: %d\n", res);
+    res = mr_process_fd(&mr, fileno(fh), wc_map, wc_reduce, NULL);
+    if (res != 0)
+        die("Failed to process MR: %d\n", res);
+    mr_destroy(&mr);
 
     fclose(fh);
 

@@ -63,7 +63,8 @@ def build(bld):
             'target'        : os.path.splitext(str(bench))[0],
             'use'           : 'st-mapred',
             'lib'           : ['crypto'],
-            'stlib'         : ['hayai_main', 'pthread'],
+            'stlib'         : ['hayai_main'],
+            'lib'           : ['pthread'],
         }
         features.update(cxxflags)
         bld.program(**features)

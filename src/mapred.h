@@ -5,6 +5,10 @@
 #include "ukey.h"
 #include "tp.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct {
     wtable_t table;
     tp_t tp;
@@ -19,5 +23,9 @@ int mr_process_fd(mr_t *mr, int fd, mr_map_cb_t map, mr_reduce_cb_t reduce, void
 int mr_process(mr_t *mr, const char *mem, size_t size, mr_map_cb_t map, mr_reduce_cb_t reduce, void *user);
 int mr_emit(mr_t *mr, ukey_t *key, void *value);
 void mr_destroy(mr_t *mr);
+
+#ifdef __cplusplus
+};
+#endif
 
 #endif

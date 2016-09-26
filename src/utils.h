@@ -6,6 +6,10 @@
 #include <string.h>
 #include <pthread.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define ARRAY_SIZE(x) ((unsigned)(sizeof(x)/sizeof(x[0])))
 
 void die(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
@@ -50,5 +54,9 @@ typedef void (*fchunk_cb_t)(fchunk_t *chunk, void *user);
 int fchunk_read_fd(int fd, unsigned max, fchunk_cb_t cb, void *user, void **map, size_t *len);
 int fchunk_read(const char *mem, size_t size, unsigned max, fchunk_cb_t cb, void *user);
 void fchunk_read_word(const char *mem, size_t size, fchunk_cb_t cb, void *user);
+
+#ifdef __cplusplus
+};
+#endif
 
 #endif

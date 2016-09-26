@@ -30,27 +30,19 @@ typedef struct {
 } _wake_t;
 
 static void __lock(tp_t *tp) {
-    int err = pthread_mutex_lock(&tp->lock);
-    if (err != 0)
-        die("Failed to lock TP: %s", strerror(err));
+    __mtx_lock(&tp->lock);
 }
 
 static void __unlock(tp_t *tp) {
-    int err = pthread_mutex_unlock(&tp->lock);
-    if (err != 0)
-        die("Failed to unlock TP: %s", strerror(err));
+    __mtx_unlock(&tp->lock);
 }
 
 static void __wait(tp_t *tp) {
-    int err = pthread_cond_wait(&tp->cond, &tp->lock);
-    if (err != 0)
-        die("Failed to wait on TP: %s", strerror(err));
+    __cond_wait(&tp->cond, &tp->lock);
 }
 
 static void __notify(tp_t *tp) {
-    int err = pthread_cond_signal(&tp->cond);
-    if (err != 0)
-        die("Failed to signal on TP: %s", strerror(err));
+    __cond_notify(&tp->cond);
 }
 
 static int __tp_push(tp_t *tp, tp_cb_t tsk, void *user, tp_ta_t action) {

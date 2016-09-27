@@ -52,7 +52,7 @@ def build(bld):
             'source'        : [test],
             'target'        : os.path.splitext(str(test))[0],
             'use'           : 'st-mapred',
-            'lib'           : ['cunit', 'crypto', 'pthread'],
+            'lib'           : ['cunit', 'pthread'],
         }
         features.update(cflags)
         bld.program(**features)
@@ -62,7 +62,6 @@ def build(bld):
             'source'        : [bench],
             'target'        : os.path.splitext(str(bench))[0],
             'use'           : 'st-mapred',
-            'lib'           : ['crypto'],
             'stlib'         : ['hayai_main'],
             'lib'           : ['pthread'],
         }
@@ -75,7 +74,7 @@ def build(bld):
         'source'        : ['src/main.c'],
         'target'        : 'mapred',
         'use'           : 'st-mapred',
-        'lib'           : ['crypto', 'pthread'],
+        'lib'           : ['pthread'],
     }
     features.update(cflags)
     bld.program(**features)

@@ -10,6 +10,7 @@
 #include <sys/param.h>
 
 #include "utils.h"
+#include "mapred.h"
 
 void die(const char *fmt, ...) {
     va_list ap;
@@ -161,4 +162,20 @@ void fchunk_read_word(const char *mem, size_t size,
         };
         cb(&chunk, user);
     }
+}
+
+void _mr_chunk_process_word(fchunk_t *chunk, void *user) {
+    ukey_t *key;
+    mr_t *mr = user;
+    int res;
+
+    key = ukey_init(chunk->mem+chunk->offset, chunk->count);
+    if (!key)
+        die("Can't init key\n");
+
+    res = mr_emit_intermediate(mr, key, NULL);
+    if (res != 0)
+        die("Failed to emit an intermediate key: %d\n", res);
+
+    ukey_put(key);
 }

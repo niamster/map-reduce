@@ -31,13 +31,9 @@ void usage(const char *prog) {
     exit(1);
 }
 
-static void wc_map(mr_t *mr, ukey_t *key, void *user) {
-    int res;
+static void wc_map(mr_t *mr, const char *data, size_t size, void *user) {
     (void)user;
-
-    res = mr_emit_intermediate(mr, key, NULL);
-    if (res != 0)
-        die("Failed to emit an intermediate key: %d\n", res);
+    fchunk_read_word(data, size, _mr_chunk_process_word, mr);
 }
 
 static void wc_reduce(mr_t *mr, ukey_t *key, long long entry, void *user) {

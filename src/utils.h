@@ -55,6 +55,8 @@ int fchunk_read_fd(int fd, unsigned max, fchunk_cb_t cb, void *user, void **map,
 int fchunk_read(const char *mem, size_t size, unsigned max, fchunk_cb_t cb, void *user);
 void fchunk_read_word(const char *mem, size_t size, fchunk_cb_t cb, void *user);
 
+void _mr_chunk_process_word(fchunk_t *chunk, void *user);
+
 #ifdef __cplusplus
 };
 #endif

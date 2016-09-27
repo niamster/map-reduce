@@ -16,7 +16,7 @@ typedef struct {
     unsigned threads;
 } mr_t;
 
-typedef void (*mr_map_cb_t)(mr_t *mr, ukey_t *key, void *user);
+typedef void (*mr_map_cb_t)(mr_t *mr, const char *data, size_t size, void *user);
 typedef void (*mr_reduce_cb_t)(mr_t *mr, ukey_t *key, long long entry, void *user);
 typedef void (*mr_output_cb_t)(ukey_t *key, olentry_t *entry, void *user);
 

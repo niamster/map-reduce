@@ -20,13 +20,10 @@ typedef struct {
     size_t len;
 } _basic_data_t;
 
-static void _basic_map(mr_t *mr, ukey_t *key, void *user) {
-    int res;
+static void _basic_map(mr_t *mr, const char *data, size_t size, void *user) {
     (void)user;
 
-    res = mr_emit_intermediate(mr, key, NULL);
-    if (res != 0)
-        die("Failed to emit a key: %d\n", res);
+    fchunk_read_word(data, size, _mr_chunk_process_word, mr);
 }
 
 static void _basic_reduce(mr_t *mr, ukey_t *key, long long entry, void *user) {

@@ -69,24 +69,12 @@ static void __mr_iter(ukey_t *key, olentry_t *entries, olentry_t *values, void *
         die("Failed to push chunk process task: %d", err);
 }
 
-static void _mr_chunk_process_word(fchunk_t *chunk, void *user) {
-    __mr_chunk_data_t *mcdata = user;
-    __mr_data_t *mdata = mcdata->mdata;
-    ukey_t *key;
-
-    key = ukey_init(chunk->mem+chunk->offset, chunk->count);
-    if (!key)
-        die("Can't init key\n");
-    mdata->map(mdata->mr, key, mdata->user);
-    ukey_put(key);
-}
-
 static void _mr_chunk_process_task(void *user) {
     __mr_chunk_data_t *mcdata = user;
+    __mr_data_t *mdata = mcdata->mdata;
     fchunk_t *chunk = &mcdata->chunk;
 
-    fchunk_read_word(chunk->mem+chunk->offset, chunk->count,
-        _mr_chunk_process_word, mcdata);
+    mdata->map(mdata->mr, chunk->mem+chunk->offset, chunk->count, mdata->user);
 
     free(mcdata);
 }

@@ -36,7 +36,7 @@ static void wc_map(mr_t *mr, const char *data, size_t size, void *user) {
     fchunk_read_word(data, size, _mr_chunk_process_word, mr);
 }
 
-static void wc_reduce(mr_t *mr, ukey_t *key, long long entry, void *user) {
+static void wc_reduce(mr_t *mr, ukey_t *key, unsigned long entry, void *user) {
     unsigned long count = 0;
     olentry_t el;
     int res;
@@ -48,7 +48,7 @@ static void wc_reduce(mr_t *mr, ukey_t *key, long long entry, void *user) {
 
     while (true) {
         ++count;
-        if (el.next == -1)
+        if (el.next == OLIST_NONE)
             break;
 
         res = mr_get_entry(mr, key, el.next, &el);

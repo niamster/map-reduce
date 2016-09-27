@@ -5,16 +5,18 @@
 
 /* Simple ordered list with dups */
 
+#define OLIST_NONE ((unsigned long)-1)
+
 typedef struct {
     ukey_t *key;
     void *value;
-    long long next; // position in the storage, -1 means the end
+    unsigned long next; // position in the storage, OLIST_NONE means the end
 } olentry_t;
 
 typedef struct {
     union {
         olentry_t *values;
-        long long *index;
+        unsigned long *index;
         void *elements;
     };
     unsigned count; // number of values
@@ -33,7 +35,7 @@ typedef void (*olist_iter_t)(ukey_t *key, olentry_t *entries, olentry_t *values,
 int olist_init(olist_t *olist);
 int olist_insert(olist_t *olist, ukey_t *key, void *value);
 int olist_iterate(olist_t *olist, olist_iter_t iter, void *user);
-int olist_get_entry(olist_t *olist, long long pos, olentry_t *entry);
+int olist_get_entry(olist_t *olist, unsigned long pos, olentry_t *entry);
 void olist_destroy(olist_t *olist);
 
 #endif

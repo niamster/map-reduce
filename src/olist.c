@@ -41,13 +41,13 @@ static int __resize_storage(olist_t *olist) {
 }
 
 static int __resize_index(olist_t *olist) {
-    return __resize(&olist->index, sizeof(long long));
+    return __resize(&olist->index, sizeof(unsigned long));
 }
 
-static int __insert(olist_t *olist, const long long pos) {
+static int __insert(olist_t *olist, const unsigned long pos) {
     olentry_t *values = olist->values.values;
     olentry_t *val = &olist->values.values[pos];
-    long long *index;
+    unsigned long *index;
     long long left, right;
     long long tgt = 0;
     int res;
@@ -60,7 +60,7 @@ static int __insert(olist_t *olist, const long long pos) {
     index = olist->index.index;
     while (left <= right) {
         tgt = (left + right) / 2;
-        long long epos = index[tgt];
+        unsigned long epos = index[tgt];
         olentry_t *el = &values[epos];
 
         int cmp = strcmp(val->key->key, el->key->key);
@@ -103,7 +103,7 @@ int olist_init(olist_t *olist) {
     res = ____resize(&olist->values, sizeof(olentry_t), OLIST_INIT_SIZE);
     if (res != 0)
         return res;
-    res = ____resize(&olist->index, sizeof(long long), OLIST_INIT_SIZE);
+    res = ____resize(&olist->index, sizeof(unsigned long), OLIST_INIT_SIZE);
     if (res != 0)
         goto fail;
 
@@ -150,7 +150,7 @@ int olist_iterate(olist_t *olist, olist_iter_t iter, void *user) {
     olist_storage_t *index = &olist->index;
     olentry_t *values = olist->values.values;
     for (idx=0; idx<index->count; ++idx) {
-        long long epos = index->index[idx];
+        unsigned long epos = index->index[idx];
         olentry_t *el = &values[epos];
         iter(el->key, el, olist->values.values, user);
     }
@@ -158,7 +158,7 @@ int olist_iterate(olist_t *olist, olist_iter_t iter, void *user) {
     return 0;
 }
 
-int olist_get_entry(olist_t *olist, long long pos, olentry_t *entry) {
+int olist_get_entry(olist_t *olist, unsigned long pos, olentry_t *entry) {
     if (!olist || !entry)
         return -EINVAL;
 

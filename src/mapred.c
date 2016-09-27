@@ -28,7 +28,7 @@ typedef struct {
 typedef struct {
     __mr_data_t *mdata;
     ukey_t *key;
-    long long entry;
+    unsigned long entry;
 } __mr_iter_data_t;
 
 static void _mr_output(ukey_t *key, olentry_t *entries, olentry_t *values, void *user) {
@@ -203,7 +203,7 @@ int mr_emit(mr_t *mr, ukey_t *key, void *value) {
     return wtable_insert(&mr->input, key, value);
 }
 
-int mr_get_entry(mr_t *mr, ukey_t *key, long long pos, olentry_t *entry) {
+int mr_get_entry(mr_t *mr, ukey_t *key, unsigned long pos, olentry_t *entry) {
    if (!mr)
         return -EINVAL;
    return wtable_get_entry(&mr->input, key, pos, entry);

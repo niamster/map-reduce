@@ -169,7 +169,7 @@ int wtable_iterate(wtable_t *wtable, olist_iter_t iter, void *user) {
     return 0;
 }
 
-int wtable_get_entry(wtable_t *wtable, ukey_t *key, long long pos, olentry_t *entry) {
+int wtable_get_entry(wtable_t *wtable, ukey_t *key, unsigned long pos, olentry_t *entry) {
     if (!wtable || !key)
         return -EINVAL;
 

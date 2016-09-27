@@ -41,7 +41,7 @@ void __test_insert_iter(ukey_t *key, olentry_t *entries, olentry_t *values, void
         assert(el && el->key && key); // make clang analyzer happy
         CU_ASSERT_EQUAL_FATAL(strcmp(el->key->key, key->key), 0);
         ++data->total;
-        if (el->next == -1)
+        if (el->next == OLIST_NONE)
             break;
         el = &values[el->next];
     }

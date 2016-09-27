@@ -29,6 +29,24 @@ static inline void __mtx_unlock(pthread_mutex_t *mtx) {
         die("Failed to unlock TP: %s", strerror(err));
 }
 
+static inline void __rw_rdlock(pthread_rwlock_t *lock) {
+    int err = pthread_rwlock_rdlock(lock);
+    if (err != 0)
+        die("Failed to lock TP: %s", strerror(err));
+}
+
+static inline void __rw_wrlock(pthread_rwlock_t *lock) {
+    int err = pthread_rwlock_wrlock(lock);
+    if (err != 0)
+        die("Failed to lock TP: %s", strerror(err));
+}
+
+static inline void __rw_unlock(pthread_rwlock_t *lock) {
+    int err = pthread_rwlock_unlock(lock);
+    if (err != 0)
+        die("Failed to unlock TP: %s", strerror(err));
+}
+
 static inline void __cond_wait(pthread_cond_t *cond, pthread_mutex_t *mtx) {
     int err = pthread_cond_wait(cond, mtx);
     if (err != 0)

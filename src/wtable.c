@@ -42,7 +42,7 @@ int wtable_init(wtable_t *wtable, unsigned bits) {
         err = olist_init(&w->list);
         if (err != 0)
             goto fail;
-        err = pthread_mutex_init_ec(&w->lock);
+        err = pthread_rwlock_init(&w->lock, NULL);
         if (err != 0)
             goto fail;
     }
@@ -55,7 +55,7 @@ int wtable_init(wtable_t *wtable, unsigned bits) {
         wentry_t *w = &wtable->entries[idx];
         if (!w) continue;
         olist_destroy(&w->list);
-        pthread_mutex_destroy(&w->lock);
+        pthread_rwlock_destroy(&w->lock);
     }
     free(wtable->entries);
 
@@ -74,9 +74,9 @@ int wtable_insert(wtable_t *wtable, ukey_t *key, void *value) {
     wentry_t *w = &wtable->entries[hval];
     int err;
 
-    __mtx_lock(&w->lock);
+    __rw_wrlock(&w->lock);
     err = olist_insert(&w->list, key, value);
-    __mtx_unlock(&w->lock);
+    __rw_unlock(&w->lock);
 
     return err;
 }
@@ -89,9 +89,9 @@ int wtable_iterate(wtable_t *wtable, olist_iter_t iter, void *user) {
     unsigned idx; for (idx=0; idx<=255; ++idx) {
         unsigned hval = _fnv_32(idx, wtable->bits);
         wentry_t *w = &wtable->entries[hval];
-        __mtx_lock(&w->lock);
+        __rw_rdlock(&w->lock);
         err = olist_iterate(&w->list, iter, user);
-        __mtx_unlock(&w->lock);
+        __rw_unlock(&w->lock);
         if (err != 0)
             return err;
     }
@@ -107,9 +107,9 @@ int wtable_get_entry(wtable_t *wtable, ukey_t *key, long long pos, olentry_t *en
     wentry_t *w = &wtable->entries[hval];
     int err;
 
-    __mtx_lock(&w->lock);
+    __rw_rdlock(&w->lock);
     err = olist_get_entry(&w->list, pos, entry);
-    __mtx_unlock(&w->lock);
+    __rw_unlock(&w->lock);
 
     return err;
 }
@@ -124,7 +124,7 @@ void wtable_destroy(wtable_t *wtable) {
         wentry_t *w = &wtable->entries[idx];
         if (!w) continue;
         olist_destroy(&w->list);
-        pthread_mutex_destroy(&w->lock);
+        pthread_rwlock_destroy(&w->lock);
     }
     free(wtable->entries);
 

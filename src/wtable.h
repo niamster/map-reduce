@@ -11,13 +11,15 @@
 #include "utils.h"
 #include "olist.h"
 
+#include <pthread.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 typedef struct {
     olist_t list;
-    pthread_mutex_t lock;
+    pthread_rwlock_t lock;
 } wentry_t;
 
 typedef struct {

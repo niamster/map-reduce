@@ -72,9 +72,22 @@ static void _basic_output(ukey_t *key, olentry_t *el, void *user) {
 }
 
 void test_basic(void) {
-    const char text[] = "foo bar qux\nbar bar baz";
-    const char expect[] = "bar=3\nbaz=1\nfoo=1\nqux=1\n";
+    const char template[] = "foo bar qux\nbar bar baz sdf yui ";
+    const unsigned tlen = sizeof(template) - 1;
+    const unsigned copies = 1000;
+    char *text, *expect = NULL;
     mr_t mr;
+
+    text = calloc(1, tlen*copies + 1);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(text);
+    assert(text);
+    unsigned idx; for (idx=0; idx<copies; ++idx) {
+        memcpy(text + tlen*idx, template, tlen);
+    }
+    asprintf(&expect, "bar=%u\nbaz=%u\nfoo=%u\nqux=%u\nsdf=%u\nyui=%u\n",
+        3*copies, 1*copies, 1*copies, 1*copies, 1*copies, 1*copies);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(expect);
+    assert(expect);
 
     unsigned t; for (t=1; t<10; ++t) {
         _basic_data_t bdata = {
@@ -82,7 +95,7 @@ void test_basic(void) {
             .len = 0,
         };
         CU_ASSERT_EQUAL_FATAL(mr_init(&mr, t), 0);
-        CU_ASSERT_EQUAL_FATAL(mr_process(&mr, text, sizeof(text), _basic_map, _basic_reduce, _basic_output, &bdata), 0);
+        CU_ASSERT_EQUAL_FATAL(mr_process(&mr, text, strlen(text)+1, _basic_map, _basic_reduce, _basic_output, &bdata), 0);
         mr_destroy(&mr);
 
         CU_ASSERT_PTR_NOT_NULL_FATAL(bdata.out);
@@ -90,6 +103,9 @@ void test_basic(void) {
         CU_ASSERT_STRING_EQUAL_FATAL(bdata.out, expect);
         free(bdata.out);
     }
+
+    free(expect);
+    free(text);
 }
 
 int init_suite(void) {

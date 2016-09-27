@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 
 #include "utils.h"
 
@@ -9,29 +10,51 @@
 
 /* IMPL */
 
+typedef struct {
+    unsigned long pos;
+    unsigned shard;
+} _sindex_data_t;
+
+typedef struct {
+    _sindex_data_t *sindex;
+    unsigned long index;
+    unsigned shard;
+    unsigned max;
+} _witer_data_t;
+
 static inline unsigned _bits(unsigned hash, unsigned bits) {
     return hash & ((1 << bits) - 1);
 }
 
+static void _witer(ukey_t *key, olentry_t *entries, olentry_t *values, void *user) {
+    _witer_data_t *wdata = user;
+    _sindex_data_t *cur;
+
+    if (wdata->index >= wdata->max) {
+        fprintf(stderr, "Skipping list key '%s'\n", key->key);
+        return;
+    }
+
+    cur = &wdata->sindex[wdata->index++];
+    cur->shard = wdata->shard;
+    cur->pos = entries - values;
+}
+
 static int __sindex_cmp(const void *_a, const void *_b, void *user) {
     wtable_t *wtable = user;
-    const unsigned *a = _a, *b = _b;
-    wentry_t *wa = &wtable->entries[*a];
-    wentry_t *wb = &wtable->entries[*b];
+    const _sindex_data_t *a = _a, *b = _b;
+    wentry_t *wa = &wtable->entries[a->shard];
+    wentry_t *wb = &wtable->entries[b->shard];
     olentry_t ela, elb;
     int res;
 
-    __rw_rdlock(&wa->lock);
-    res = olist_get_entry(&wa->list, 0, &ela);
-    __rw_unlock(&wa->lock);
+    res = olist_get_entry(&wa->list, a->pos, &ela);
     if (res != 0)
-        die("Failed to get element from shard %u: %d\n", *a, res);
+        die("Failed to get element from shard %lu: %d\n", a->pos, res);
 
-    __rw_rdlock(&wb->lock);
-    res = olist_get_entry(&wb->list, 0, &elb);
-    __rw_unlock(&wb->lock);
+    res = olist_get_entry(&wb->list, b->pos, &elb);
     if (res != 0)
-        die("Failed to get element from shard %u: %d\n", *b, res);
+        die("Failed to get element from shard %lu: %d\n", b->pos, res);
 
     res = strcmp(ela.key->key, elb.key->key);
     if (res < 0)
@@ -118,44 +141,70 @@ int wtable_iterate(wtable_t *wtable, olist_iter_t iter, void *user) {
     if (!wtable)
         return -EINVAL;
 
-    int err;
+    int err = 0;
     const unsigned size = 1 << wtable->bits;
-    unsigned idx;
+    unsigned long count = 0;
+    unsigned locked = 0;
+    _sindex_data_t *sindex = NULL;
+    unsigned long idx;
 
-    /* Just sort the shards, the items in the lists are already sorted. */
-    /* TODO: try merge as olist is internally sorted */
-
-    unsigned *sindex = malloc(size * sizeof(unsigned));
-    if (!sindex)
-        return -ENOMEM;
-
-    unsigned sidx = 0;
     for (idx=0; idx<size; ++idx) {
-        unsigned count;
         wentry_t *w = &wtable->entries[idx];
+        ++locked;
+#if !defined(TSAN)
         __rw_rdlock(&w->lock);
-        count = w->list.index.count;
-        __rw_unlock(&w->lock);
-        if (count == 0)
-            continue;
-        sindex[sidx++] = idx;
+#endif
+        count += olist_uniq_qty(&w->list);
     }
 
-    qsort_r(sindex, sidx, sizeof(unsigned), __sindex_cmp, wtable);
+    if (count == 0)
+        goto out;
 
-    for (idx=0; idx<sidx; ++idx) {
-        wentry_t *w = &wtable->entries[sindex[idx]];
-        __rw_rdlock(&w->lock);
-        err = olist_iterate(&w->list, iter, user);
-        __rw_unlock(&w->lock);
+    sindex = malloc(count * sizeof(_sindex_data_t));
+    if (!sindex) {
+        err = -ENOMEM;
+        goto out;
+    }
+
+    _witer_data_t wdata = {
+        .sindex = sindex,
+        .max = count,
+        .index = 0,
+    };
+    for (idx=0; idx<size; ++idx) {
+        wentry_t *w = &wtable->entries[idx];
+        wdata.shard = idx;
+        err = olist_iterate(&w->list, _witer, &wdata);
         if (err != 0)
-            return err;
+            goto out;
+    }
+    assert(count == wdata.index);
+
+    qsort_r(sindex, count, sizeof(_sindex_data_t), __sindex_cmp, wtable);
+
+    for (idx=0; idx<count; ++idx) {
+        _sindex_data_t *el = &sindex[idx];
+        wentry_t *w = &wtable->entries[el->shard];
+        olentry_t *values = w->list.values.values;
+        olentry_t oel;
+
+        err = olist_get_entry(&w->list, el->pos, &oel);
+        if (err != 0)
+            break;
+        iter(oel.key, &oel, values, user);
     }
 
+  out:
+#if !defined(TSAN)
+    for (idx=0; idx<locked; ++idx) {
+        wentry_t *w = &wtable->entries[locked-idx-1];
+        __rw_unlock(&w->lock);
+    }
+#endif
 
     free(sindex);
 
-    return 0;
+    return err;
 }
 
 int wtable_get_entry(wtable_t *wtable, ukey_t *key, unsigned long pos, olentry_t *entry) {

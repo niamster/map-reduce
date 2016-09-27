@@ -36,6 +36,9 @@ int olist_init(olist_t *olist);
 int olist_insert(olist_t *olist, ukey_t *key, void *value);
 int olist_iterate(olist_t *olist, olist_iter_t iter, void *user);
 int olist_get_entry(olist_t *olist, unsigned long pos, olentry_t *entry);
+static inline unsigned olist_uniq_qty(olist_t *olist) {
+    return olist->index.count;
+}
 void olist_destroy(olist_t *olist);
 
 #endif

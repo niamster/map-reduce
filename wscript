@@ -46,6 +46,8 @@ def build(bld):
         add_cflag(['-g', '-O0'])
     if bld.options.san:
         add_flag('-fsanitize=%s' % bld.options.san)
+        if 'thread' in bld.options.san:
+            add_cflag('-DTSAN')
     if bld.options.gprof:
         add_flag('-pg')
     if bld.options.lto:

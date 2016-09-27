@@ -3,18 +3,25 @@
 #include <assert.h>
 #include <stdatomic.h>
 
+#include "utils.h"
+
 #include "ukey.h"
 
 ukey_t *ukey_init(const char *data, size_t len) {
     ukey_t *key;
 
-    key = calloc(1, sizeof(ukey_t)+len+1);
+    if (len >= (typeof(key->len))-1)
+        return NULL;
+
+    key = malloc(sizeof(ukey_t)+len+1);
     if (!key)
         return NULL;
 
     memcpy(key->key, data, len);
+    key->key[len] = 0;
     key->ref = 1;
     key->len = len;
+    key->hash = fnv1_32(data, len);
 
     return key;
 }

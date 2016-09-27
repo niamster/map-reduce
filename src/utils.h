@@ -15,6 +15,8 @@ extern "C" {
 void die(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
 bool is_sep(char c);
 
+unsigned fnv1_32(const char *key, unsigned int len);
+
 int pthread_mutex_init_ec(pthread_mutex_t *mtx);
 
 static inline void __mtx_lock(pthread_mutex_t *mtx) {

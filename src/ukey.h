@@ -13,8 +13,9 @@ extern "C" {
 #endif
 
 typedef struct {
-    size_t len;
-    atomic_uint ref;
+    unsigned short len;
+    atomic_ushort ref;
+    unsigned hash;
     char key[]; // contains '\0'
 } ukey_t;
 

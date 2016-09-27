@@ -179,3 +179,19 @@ void _mr_chunk_process_word(fchunk_t *chunk, void *user) {
 
     ukey_put(key);
 }
+
+unsigned fnv1_32(const char *key, unsigned int len) {
+    const char *end = key + len;
+    static const unsigned FNV1_32_INIT = 0x811c9dc5;
+    unsigned hash = FNV1_32_INIT;
+
+    while (key < end) {
+        /* multiply by the 32 bit FNV magic prime mod 2^32 */
+        hash += (hash<<1) + (hash<<4) + (hash<<7) + (hash<<8) + (hash<<24);
+
+        /* xor the bottom with the current octet */
+        hash ^= *key++;
+    }
+
+    return hash;
+}

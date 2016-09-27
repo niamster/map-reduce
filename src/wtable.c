@@ -3,24 +3,13 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "utils.h"
+
 #include "wtable.h"
 
 /* IMPL */
 
-#define FNV1_32_INIT 0x811c9dc5
-
-static unsigned _fnv_32(const char *key, unsigned int len, unsigned bits) {
-    const char *end = key + len;
-    unsigned hash = FNV1_32_INIT;
-
-    while (key < end) {
-        /* multiply by the 32 bit FNV magic prime mod 2^32 */
-        hash += (hash<<1) + (hash<<4) + (hash<<7) + (hash<<8) + (hash<<24);
-
-        /* xor the bottom with the current octet */
-        hash ^= *key++;
-    }
-
+static inline unsigned _bits(unsigned hash, unsigned bits) {
     return hash & ((1 << bits) - 1);
 }
 
@@ -96,7 +85,7 @@ int wtable_insert(wtable_t *wtable, ukey_t *key, void *value) {
     if (!wtable || !key)
         return -EINVAL;
 
-    unsigned hval = _fnv_32(key->key, key->len, wtable->bits);
+    unsigned hval = _bits(key->hash, wtable->bits);
     wentry_t *w = &wtable->entries[hval];
     int err;
 
@@ -173,7 +162,7 @@ int wtable_get_entry(wtable_t *wtable, ukey_t *key, unsigned long pos, olentry_t
     if (!wtable || !key)
         return -EINVAL;
 
-    unsigned hval = _fnv_32(key->key, key->len, wtable->bits);
+    unsigned hval = _bits(key->hash, wtable->bits);
     wentry_t *w = &wtable->entries[hval];
     int err;
 

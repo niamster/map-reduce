@@ -86,3 +86,4 @@ BENCHMARK_P_INSTANCE(mrFixture, mapred, (1));
 BENCHMARK_P_INSTANCE(mrFixture, mapred, (sysconf(_SC_NPROCESSORS_ONLN)));
 BENCHMARK_P_INSTANCE(mrFixture, mapred, (sysconf(_SC_NPROCESSORS_ONLN)/2));
 BENCHMARK_P_INSTANCE(mrFixture, mapred, (sysconf(_SC_NPROCESSORS_ONLN)*2));
+BENCHMARK_P_INSTANCE(mrFixture, mapred, (sysconf(_SC_NPROCESSORS_ONLN)*4));

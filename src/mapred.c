@@ -141,7 +141,7 @@ int mr_process_fd(mr_t *mr, int fd, mr_map_cb_t map, mr_reduce_cb_t reduce, mr_o
     if (err != 0)
         goto out;
 
-    err = wtable_iterate(&mr->input, __mr_iter, &mdata);
+    err = wtable_iterate_unordered(&mr->input, __mr_iter, &mdata);
     if (err != 0)
         goto out;
 
@@ -175,7 +175,7 @@ int mr_process(mr_t *mr, const char *mem, size_t size, mr_map_cb_t map, mr_reduc
     if (err != 0)
         return err;
 
-    err = wtable_iterate(&mr->input, __mr_iter, &mdata);
+    err = wtable_iterate_unordered(&mr->input, __mr_iter, &mdata);
     if (err != 0)
         return err;
 

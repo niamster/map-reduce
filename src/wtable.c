@@ -9,17 +9,47 @@
 
 #define FNV1_32_INIT 0x811c9dc5
 
-static unsigned _fnv_32(char c, unsigned bits) {
-    unsigned hval = FNV1_32_INIT;
+static unsigned _fnv_32(const char *key, unsigned int len, unsigned bits) {
+    const char *end = key + len;
+    unsigned hash = FNV1_32_INIT;
 
-    if (c) {
+    while (key < end) {
         /* multiply by the 32 bit FNV magic prime mod 2^32 */
-        hval += (hval<<1) + (hval<<4) + (hval<<7) + (hval<<8) + (hval<<24);
+        hash += (hash<<1) + (hash<<4) + (hash<<7) + (hash<<8) + (hash<<24);
+
         /* xor the bottom with the current octet */
-        hval ^= c;
+        hash ^= *key++;
     }
 
-    return hval & ((1 << bits) - 1);
+    return hash & ((1 << bits) - 1);
+}
+
+static int __sindex_cmp(const void *_a, const void *_b, void *user) {
+    wtable_t *wtable = user;
+    const unsigned *a = _a, *b = _b;
+    wentry_t *wa = &wtable->entries[*a];
+    wentry_t *wb = &wtable->entries[*b];
+    olentry_t ela, elb;
+    int res;
+
+    __rw_rdlock(&wa->lock);
+    res = olist_get_entry(&wa->list, 0, &ela);
+    __rw_unlock(&wa->lock);
+    if (res != 0)
+        die("Failed to get element from shard %u: %d\n", *a, res);
+
+    __rw_rdlock(&wb->lock);
+    res = olist_get_entry(&wb->list, 0, &elb);
+    __rw_unlock(&wb->lock);
+    if (res != 0)
+        die("Failed to get element from shard %u: %d\n", *b, res);
+
+    res = strcmp(ela.key->key, elb.key->key);
+    if (res < 0)
+        return -1;
+    if (res > 0)
+        return 1;
+    return 0;
 }
 
 /* API */
@@ -62,15 +92,11 @@ int wtable_init(wtable_t *wtable, unsigned bits) {
     return err;
 }
 
-unsigned wtable_hash(wtable_t *wtable, char c) {
-    return _fnv_32(c, wtable->bits);
-}
-
 int wtable_insert(wtable_t *wtable, ukey_t *key, void *value) {
     if (!wtable || !key)
         return -EINVAL;
 
-    unsigned hval = _fnv_32(key->key[0], wtable->bits);
+    unsigned hval = _fnv_32(key->key, key->len, wtable->bits);
     wentry_t *w = &wtable->entries[hval];
     int err;
 
@@ -81,14 +107,14 @@ int wtable_insert(wtable_t *wtable, ukey_t *key, void *value) {
     return err;
 }
 
-int wtable_iterate(wtable_t *wtable, olist_iter_t iter, void *user) {
+int wtable_iterate_unordered(wtable_t *wtable, olist_iter_t iter, void *user) {
     if (!wtable)
         return -EINVAL;
 
     int err;
-    unsigned idx; for (idx=0; idx<=255; ++idx) {
-        unsigned hval = _fnv_32(idx, wtable->bits);
-        wentry_t *w = &wtable->entries[hval];
+    const unsigned size = 1 << wtable->bits;
+    unsigned idx; for (idx=0; idx<size; ++idx) {
+        wentry_t *w = &wtable->entries[idx];
         __rw_rdlock(&w->lock);
         err = olist_iterate(&w->list, iter, user);
         __rw_unlock(&w->lock);
@@ -99,11 +125,55 @@ int wtable_iterate(wtable_t *wtable, olist_iter_t iter, void *user) {
     return 0;
 }
 
+int wtable_iterate(wtable_t *wtable, olist_iter_t iter, void *user) {
+    if (!wtable)
+        return -EINVAL;
+
+    int err;
+    const unsigned size = 1 << wtable->bits;
+    unsigned idx;
+
+    /* Just sort the shards, the items in the lists are already sorted. */
+    /* TODO: try merge as olist is internally sorted */
+
+    unsigned *sindex = malloc(size * sizeof(unsigned));
+    if (!sindex)
+        return -ENOMEM;
+
+    unsigned sidx = 0;
+    for (idx=0; idx<size; ++idx) {
+        unsigned count;
+        wentry_t *w = &wtable->entries[idx];
+        __rw_rdlock(&w->lock);
+        count = w->list.index.count;
+        __rw_unlock(&w->lock);
+        if (count == 0)
+            continue;
+        sindex[sidx++] = idx;
+    }
+
+    qsort_r(sindex, sidx, sizeof(unsigned), __sindex_cmp, wtable);
+
+    for (idx=0; idx<sidx; ++idx) {
+        wentry_t *w = &wtable->entries[sindex[idx]];
+        __rw_rdlock(&w->lock);
+        err = olist_iterate(&w->list, iter, user);
+        __rw_unlock(&w->lock);
+        if (err != 0)
+            return err;
+    }
+
+
+    free(sindex);
+
+    return 0;
+}
+
 int wtable_get_entry(wtable_t *wtable, ukey_t *key, long long pos, olentry_t *entry) {
     if (!wtable || !key)
         return -EINVAL;
 
-    unsigned hval = _fnv_32(key->key[0], wtable->bits);
+    unsigned hval = _fnv_32(key->key, key->len, wtable->bits);
     wentry_t *w = &wtable->entries[hval];
     int err;
 

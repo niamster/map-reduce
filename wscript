@@ -20,7 +20,7 @@ def options(opt):
 
 def build(bld):
     cflags = {
-        'cflags'        : ['-O2', '-Wall', '-Wextra', '-Werror', '-std=gnu11'],
+        'cflags'        : ['-O2', '-Wall', '-Wextra', '-Werror', '-std=gnu11', '-D_GNU_SOURCE'],
     }
     cxxflags = {
         'cxxflags'      : ['-O2', '-Wall', '-Wextra', '-Werror', '-std=gnu++14'],

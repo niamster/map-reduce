@@ -29,9 +29,9 @@ typedef struct {
 
 
 int wtable_init(wtable_t *wtable, unsigned bits);
-unsigned wtable_hash(wtable_t *wtable, char c);
 int wtable_insert(wtable_t *wtable, ukey_t *key, void *value);
 int wtable_iterate(wtable_t *wtable, olist_iter_t iter, void *user);
+int wtable_iterate_unordered(wtable_t *wtable, olist_iter_t iter, void *user);
 int wtable_get_entry(wtable_t *wtable, ukey_t *key, long long pos, olentry_t *entry);
 void wtable_destroy(wtable_t *wtable);
 

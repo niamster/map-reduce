@@ -17,28 +17,39 @@ def options(opt):
     opt.load('compiler_cxx')
     opt.add_option('--mode', action='store', default='release', help='Compile mode: release or debug')
     opt.add_option('--san', action='store', default=None, help='Enable specific sanitizer')
-    opt.add_option('--gprof', action='store_true', default=False, help='Enable specific sanitizer')
+    opt.add_option('--gprof', action='store_true', default=False, help='Compile with gprof support')
+    opt.add_option('--lto', action='store_true', default=False, help='Enable LTO')
 
 def build(bld):
     cflags = {
         'cflags'        : ['-O2', '-Wall', '-Wextra', '-Werror', '-std=gnu11', '-D_GNU_SOURCE'],
+        'ldflags'       : []
     }
     cxxflags = {
         'cxxflags'      : ['-O2', '-Wall', '-Wextra', '-Werror', '-std=gnu++14'],
+        'ldflags'       : []
     }
+    def add_cflag(flag):
+        if not isinstance(flag, list): flag = [flag]
+        cflags['cflags'] += flag
+        cxxflags['cxxflags'] += flag
+    def add_ldflag(flag):
+        if not isinstance(flag, list): flag = [flag]
+        cflags['ldflags'] += flag
+        cxxflags['ldflags'] += flag
+    def add_flag(flag):
+        add_cflag(flag)
+        add_ldflag(flag)
     if bld.options.mode == 'debug' \
        or bld.options.san \
        or bld.options.gprof:
-        cflags['cflags'] += ['-g', '-O0']
+        add_cflag(['-g', '-O0'])
     if bld.options.san:
-        opt = '-fsanitize=%s' % bld.options.san
-        cflags['cflags'] += [opt]
-        cflags['ldflags'] = [opt]
+        add_flag('-fsanitize=%s' % bld.options.san)
     if bld.options.gprof:
-        cflags['cflags'] += ['-pg']
-        cflags['ldflags'] = ['-pg']
-        cxxflags['cxxflags'] += ['-pg']
-        cxxflags['ldflags'] = ['-pg']
+        add_flag('-pg')
+    if bld.options.lto:
+        add_flag('-flto')
     source = bld.path.ant_glob('src/*.c', excl=['**/%s_*.c' % x for x in ['test', 'bench']]+['**/main.c'])
 
     features = {

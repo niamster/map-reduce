@@ -32,5 +32,7 @@ while true; do
     rtests $s
     ./waf || exit $?
     rtests $s
+    ./waf --lto || exit $?
+    rtests $s
     [ "x$1" = "xonce" ] && break
 done

@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <unistd.h>
+#include <assert.h>
 #include <sys/mman.h>
 
 #include "mapred.h"

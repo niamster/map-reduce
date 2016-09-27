@@ -5,10 +5,6 @@
 
 #include "wtable.h"
 
-#if !defined(OLIST_INIT_SIZE)
-#define OLIST_INIT_SIZE 32
-#endif
-
 /* IMPL */
 
 #define FNV1_32_INIT 0x811c9dc5

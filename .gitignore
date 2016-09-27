@@ -2,3 +2,6 @@ TAGS
 .waf*
 build
 .lock-waf_*
+callgrind.out.*
+gmon.out
+perf.data

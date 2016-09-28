@@ -21,6 +21,7 @@ typedef void (*mr_reduce_cb_t)(mr_t *mr, ukey_t *key, unsigned long entry, void 
 typedef void (*mr_output_cb_t)(ukey_t *key, olentry_t *entry, void *user);
 
 int mr_init(mr_t *mr, unsigned threads);
+int mr_set_threads(mr_t *mr, unsigned threads);
 int mr_process_fd(mr_t *mr, int fd, mr_map_cb_t map, mr_reduce_cb_t reduce, mr_output_cb_t output, void *user);
 int mr_process(mr_t *mr, const char *mem, size_t size, mr_map_cb_t map, mr_reduce_cb_t reduce, mr_output_cb_t output, void *user);
 int mr_emit_intermediate(mr_t *mr, ukey_t *key, void *value);

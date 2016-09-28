@@ -11,15 +11,9 @@
 
 /* IMPL */
 
-typedef enum {
-    TP_TA_EXE,
-    TP_TA_STOP,
-} tp_ta_t;
-
 typedef struct {
     tp_cb_t tsk;
     void *user;
-    tp_ta_t action;
     dllist_t list;
 } tp_task_t;
 
@@ -45,7 +39,11 @@ static void __notify(tp_t *tp) {
     __cond_notify(&tp->cond);
 }
 
-static int __tp_push(tp_t *tp, tp_cb_t tsk, void *user, tp_ta_t action) {
+static void __broadcast(tp_t *tp) {
+    __cond_broadcast(&tp->cond);
+}
+
+static int __tp_push(tp_t *tp, tp_cb_t tsk, void *user) {
     tp_task_t *task;
 
     task = calloc(1, sizeof(tp_task_t));
@@ -54,7 +52,6 @@ static int __tp_push(tp_t *tp, tp_cb_t tsk, void *user, tp_ta_t action) {
 
     task->tsk = tsk;
     task->user = user;
-    task->action = action;
     __lock(tp);
     dllist_add_tail(&tp->tasks, &task->list);
     __notify(tp);
@@ -66,29 +63,28 @@ static int __tp_push(tp_t *tp, tp_cb_t tsk, void *user, tp_ta_t action) {
 static void *__worker(void *data) {
     tp_t_t *me = data;
     tp_t *tp = me->tp;
-    bool running = true;
 
-    while (running) {
+    while (true) {
         dllist_t *node = NULL;
         tp_task_t *task = NULL;
+        bool should_stop = false;
         __lock(tp);
-        while (dllist_empty(&tp->tasks))
+        while (dllist_empty(&tp->tasks) && !me->should_stop)
             __wait(tp);
-        node = dllist_first(&tp->tasks);
-        dllist_detach(node);
-        __sync_add_and_fetch(&me->active, 1);
+        if (!me->should_stop) {
+            node = dllist_first(&tp->tasks);
+            dllist_detach(node);
+            __sync_add_and_fetch(&me->active, 1);
+        } else
+            should_stop = true;
         __unlock(tp);
 
-        task = container_of(node, tp_task_t, list);
-        switch (task->action) {
-            case TP_TA_EXE:
-                task->tsk(task->user);
-                break;
+        if (should_stop)
+            break;
 
-            case TP_TA_STOP:
-                running = false;
-                break;
-        }
+        task = container_of(node, tp_task_t, list);
+        task->tsk(task->user);
+
         __sync_sub_and_fetch(&me->active, 1);
         free(task);
     }
@@ -104,6 +100,41 @@ static void __wake_sync(void *user) {
     wake->done = true;
     assert(pthread_cond_signal(&wake->cond) == 0);
     assert(pthread_mutex_unlock(&wake->mtx) == 0);
+}
+
+static int __stop(tp_t *tp, unsigned count) {
+    unsigned idx;
+    int err;
+
+    if (!tp || count > tp->t_max)
+        return -EINVAL;
+
+    unsigned delta = tp->t_max - count;
+
+    __lock(tp);
+    tp->state = TP_ST_INACTIVE;
+
+    for (idx=delta; idx<tp->t_max; ++idx) {
+        tp_t_t *t = &tp->threads[idx];
+        t->should_stop = true;
+    }
+    __broadcast(tp);
+    __unlock(tp);
+
+    for (idx=delta; idx<tp->t_max; ++idx) {
+        tp_t_t *t = &tp->threads[idx];
+        err = pthread_join(t->thread, NULL);
+        if (err != 0)
+            return err;
+        memset(t, 0, sizeof(tp_t_t));
+    }
+    tp->t_max -= count;
+
+    __lock(tp);
+    tp->state = TP_ST_ACTIVE;
+    __unlock(tp);
+
+    return 0;
 }
 
 
@@ -150,6 +181,18 @@ int tp_init(tp_t *tp, unsigned threads) {
     return err;
 }
 
+int tp_set_threads(tp_t *tp, unsigned threads) {
+    if (!tp)
+        return -EINVAL;
+
+    if (threads < tp->t_max)
+        return __stop(tp, tp->t_max - threads);
+
+    assert(0 && "Not supported");
+
+    return 0;
+}
+
 int tp_push(tp_t *tp, tp_cb_t tsk, void *user) {
     tp_st_t state;
 
@@ -163,7 +206,7 @@ int tp_push(tp_t *tp, tp_cb_t tsk, void *user) {
     if (state != TP_ST_ACTIVE)
         return -EBUSY;
 
-    return __tp_push(tp, tsk, user, TP_TA_EXE);
+    return __tp_push(tp, tsk, user);
 }
 
 int tp_sync(tp_t *tp) {
@@ -185,7 +228,7 @@ int tp_sync(tp_t *tp) {
 
   retry:
     wake.done = false;
-    err = __tp_push(tp, __wake_sync, &wake, TP_TA_EXE);
+    err = __tp_push(tp, __wake_sync, &wake);
     if (err != 0)
         goto out;
 
@@ -227,27 +270,15 @@ int tp_sync(tp_t *tp) {
 }
 
 void tp_destroy(tp_t *tp) {
-    unsigned idx;
     int err;
 
     if (!tp)
         return;
 
-    __lock(tp);
-    tp->state = TP_ST_INACTIVE;
-    __unlock(tp);
+    err = __stop(tp, tp->t_max);
+    if (err != 0)
+        die("Failed to stop tasks: %s\n", strerror(err));
 
-    for (idx=0; idx<tp->t_max; ++idx) {
-        err = __tp_push(tp, NULL, NULL, TP_TA_STOP);
-        if (err != 0)
-            die("Failed to push task: %s\n", strerror(err));
-    }
-    for (idx=0; idx<tp->t_max; ++idx) {
-        tp_t_t *t = &tp->threads[idx];
-        err = pthread_join(t->thread, NULL);
-        if (err != 0)
-            die("Failed to join thread: %s\n", strerror(err));
-    }
     free(tp->threads), tp->threads = NULL;
 
     err = pthread_mutex_destroy(&tp->lock);

@@ -55,29 +55,30 @@ class mrFixture : public ::hayai::Fixture {
         unsigned idx; for (idx=0; idx<copies; ++idx) {
             memcpy(data+idx*dlen, src_bench_basic_data, dlen);
         }
+        assert(mr_init(&mr, sysconf(_SC_NPROCESSORS_ONLN)*8) == 0);
     }
 
     void __run(unsigned threads) {
         _basic_data_t bdata = {.total = 0};
-        mr_t mr;
 
-        assert(mr_init(&mr, threads) == 0);
+        assert(mr_set_threads(&mr, threads) == 0);
         assert(mr_process(&mr, data, copies*dlen, _basic_map, _basic_reduce, _basic_output, &bdata) == 0);
-        mr_destroy(&mr);
 
         assert(bdata.total == 5000*copies);
     }
 
     virtual void TearDown() {
         delete [] data;
+        mr_destroy(&mr);
     }
 
+    mr_t mr;
     char *data;
     const unsigned dlen = src_bench_basic_data_len;
     const unsigned copies = 10*1024*1024/dlen;
 };
 
-BENCHMARK_P_F(mrFixture, mapred, 1, 10,
+BENCHMARK_P_F(mrFixture, mapred, 10, 1,
     (unsigned threads)) {
     __run(threads);
 }

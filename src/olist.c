@@ -27,21 +27,21 @@ static int ____resize(olist_storage_t *storage, unsigned elsize, unsigned count)
     return 0;
 }
 
-static int __resize(olist_storage_t *storage, unsigned elsize) {
+static int __resize(olist_storage_t *storage, unsigned elsize, unsigned mult) {
     if (storage->size >= storage->count + 1)
         return 0;
 
-    unsigned nsize = (storage->size?:1) * 2;
+    unsigned nsize = (storage->size?:1) * mult;
 
     return ____resize(storage, elsize, nsize);
 }
 
 static int __resize_storage(olist_t *olist) {
-     return __resize(&olist->values, sizeof(olentry_t));
+    return __resize(&olist->values, sizeof(olentry_t), 4);
 }
 
 static int __resize_index(olist_t *olist) {
-    return __resize(&olist->index, sizeof(unsigned long));
+    return __resize(&olist->index, sizeof(unsigned long), 2);
 }
 
 static int __insert(olist_t *olist, const unsigned long pos) {
@@ -100,7 +100,7 @@ int olist_init(olist_t *olist) {
         return -EINVAL;
 
     memset(olist, 0, sizeof(olist_t));
-    res = ____resize(&olist->values, sizeof(olentry_t), OLIST_INIT_SIZE);
+    res = ____resize(&olist->values, sizeof(olentry_t), OLIST_INIT_SIZE*2);
     if (res != 0)
         return res;
     res = ____resize(&olist->index, sizeof(unsigned long), OLIST_INIT_SIZE);

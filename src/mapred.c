@@ -122,6 +122,12 @@ int mr_init(mr_t *mr, unsigned threads) {
     return err;
 }
 
+int mr_set_threads(mr_t *mr, unsigned threads) {
+    if (!mr || !threads)
+        return -EINVAL;
+    return tp_set_threads(&mr->tp, threads);
+}
+
 int mr_process_fd(mr_t *mr, int fd, mr_map_cb_t map, mr_reduce_cb_t reduce, mr_output_cb_t output, void *user) {
     __mr_data_t mdata = {
         .mr = mr,

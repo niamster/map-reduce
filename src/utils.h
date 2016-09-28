@@ -61,6 +61,11 @@ static inline void __cond_notify(pthread_cond_t *cond) {
         die("Failed to signal on TP: %s", strerror(err));
 }
 
+static inline void __cond_broadcast(pthread_cond_t *cond) {
+    int err = pthread_cond_broadcast(cond);
+    if (err != 0)
+        die("Failed to broadcast on TP: %s", strerror(err));
+}
 
 typedef struct {
     unsigned index;
